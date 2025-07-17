@@ -1,0 +1,10 @@
+Coinexplorer maintains up-to-date information about target tokens across multiple chains.
+
+coinexplorer/
+- http/
+- jobs/
+- crontab
+- .env
+- deno.json
+
+It expects access to storage via postgres
