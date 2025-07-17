@@ -76,3 +76,5 @@ System design values:
 - Strong boundaries: src (pure), jobs (logic orchestration), svcs (infra/runtime)
 - Metrics over mutable state for reliability
 - Everything works locally, scales with infra
+- Test driven development to minimize surplus design, starting with unit tests and ensuring high coverage
+- Design and development guidance and tasks should be tracked on TASKS.md
