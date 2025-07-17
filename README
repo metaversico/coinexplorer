@@ -14,8 +14,8 @@ coinexplorer/
 
 The architecture uses stateless functional programming interfaces and decoupled orchestration.
 It expects access to storage via configurable postgres.
-Jobs can be run one-off or are scheduled via cronjobs, runs are expected to execute once and exit.
-Svcs are expected to provide required setup to run the service, via source code and image and container management, they should be runnable in separate environments interacting with a shared storage.
+Jobs are idempotent and can be triggered one-off or scheduled via cron.
+All services are designed to be local-first, image-ready, and composed via environment variables.
 
 coinexplorer/src/
 - types/...
@@ -23,10 +23,12 @@ coinexplorer/src/
 - ethereum/{...}
 - data/{write-token,read-token,write-txn,read-txn,...}
 - persistence/{connect,write,read}
+- metrics/{registry,exporters,...}
 
 coinexplorer/http/
 - api/{get-chains,get-tokens,get-pool,get-txn,get-prices,...}
 - www/(website)
+- adm/ (job running API metrics and orchestration)
 
 coinexplorer/jobs/ 
 - download-solana-tokens/
@@ -34,31 +36,43 @@ coinexplorer/jobs/
 - download-solana-txns/
 - extract-txn-swaps/
 - extract-swap-prices/
+(Jobs are pure modules orchestrated externally, no side effects on load.)
 
 coinexplorer/svcs/
 - local/... (up all services configured via .env.development)
 - http-api/{up,Dockerfile,docker-compose} (HTTP Server serving API functions)
 - http-www/... (HTTP Server serving frontend website)
-- run-job/... (standard one-off run)
-- run-scheduled-job/... (standard logging, metrics and setup)
+- http-adm/... (Always-on HTTP server that runs jobs, serves /metrics, and receives POST job triggers)
+- cron/... (Schedules job runs and executes via http-adm)
 - persistence/... (postgres and pg exporter)
+- observability/... (runs prometheus, vector, loki and grafana)
 
-All services
-- runnable locally i.e. deno run svcs/http-api/main.ts, deno run svcs/run-job/main.ts download-solana-tokens, ...
-- provide local dev and prod images and container management
-- configurable via env 
+On services:
+- All services can be run locally via Deno (e.g. `deno run svcs/job-runner/main.ts`)
+- Each service can be built as an image and managed via Docker Compose
+- Configuration passed via `.env`
 
-On svcs usage
-- Local will orchestrate required services to have the whole system running locally
-- One off job runs should reference: run-job <job>
-- Cronjobs should reference: run-scheduled-job <job>
-- Http servers write logs to stdout and provide /metrics endpoint
-- Target database configurable via env
+On observability:
+- Job runner and HTTP servers expose Prometheus metrics on `/metrics`
+- Logs use structured JSON format (timestamp, job, status, duration, error)
+- `svcs/observability/` available to hook in Prometheus + Grafana stack
 
-On Deno usage
-- Always use import maps
+On testing:
+- Colocated test files preferred: `my-function.ts` + `my-function.test.ts`
+- Integration and simulation tests live under `test/`
+- All modules should be deterministic and testable in isolation
+
+On Deno usage:
+- Use `.ts` and import maps
 - Use tasks for dev API
-- Use .ts
+- Enforce stateless modules in `src/` and side-effect execution only in `jobs/` or `svcs/`
 
-On web frontend
-- Use react and shadcn
+On frontend:
+- React + shadcn/ui
+- Static build served via `http-www`
+
+System design values:
+- Minimalism, determinism, and clarity
+- Strong boundaries: src (pure), jobs (logic orchestration), svcs (infra/runtime)
+- Metrics over mutable state for reliability
+- Everything works locally, scales with infra
