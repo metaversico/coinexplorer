@@ -1,10 +1,64 @@
 Coinexplorer maintains up-to-date information about target tokens across multiple chains.
 
+Enables analysis of metadata, markets, prices, holders, arbitrages.
+
 coinexplorer/
+- src/
 - http/
 - jobs/
+- svcs/
 - crontab
 - .env
 - deno.json
+- config.ts
 
-It expects access to storage via postgres
+The architecture uses stateless functional programming interfaces and decoupled orchestration.
+It expects access to storage via configurable postgres.
+Jobs can be run one-off or are scheduled via cronjobs, runs are expected to execute once and exit.
+Svcs are expected to provide required setup to run the service, via source code and image and container management, they should be runnable in separate environments interacting with a shared storage.
+
+coinexplorer/src/
+- types/...
+- solana/{get-token,get-account-txns,...}
+- ethereum/{...}
+- data/{write-token,read-token,write-txn,read-txn,...}
+- persistence/{connect,write,read}
+
+coinexplorer/http/
+- api/{get-chains,get-tokens,get-pool,get-txn,get-prices,...}
+- www/(website)
+
+coinexplorer/jobs/ 
+- download-solana-tokens/
+- download-solana-account-txns/
+- download-solana-txns/
+- extract-txn-swaps/
+- extract-swap-prices/
+
+coinexplorer/svcs/
+- local/... (up all services configured via .env.development)
+- http-api/{up,Dockerfile,docker-compose} (HTTP Server serving API functions)
+- http-www/... (HTTP Server serving frontend website)
+- run-job/... (standard one-off run)
+- run-scheduled-job/... (standard logging, metrics and setup)
+- persistence/... (postgres and pg exporter)
+
+All services
+- runnable locally i.e. deno run svcs/http-api/main.ts, deno run svcs/run-job/main.ts download-solana-tokens, ...
+- provide local dev and prod images and container management
+- configurable via env 
+
+On svcs usage
+- Local will orchestrate required services to have the whole system running locally
+- One off job runs should reference: run-job <job>
+- Cronjobs should reference: run-scheduled-job <job>
+- Http servers write logs to stdout and provide /metrics endpoint
+- Target database configurable via env
+
+On Deno usage
+- Always use import maps
+- Use tasks for dev API
+- Use .ts
+
+On web frontend
+- Use react and shadcn
