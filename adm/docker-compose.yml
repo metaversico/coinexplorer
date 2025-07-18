@@ -1,0 +1,17 @@
+version: '3.8'
+services:
+  postgres1:
+    image: postgres:15
+    container_name: coinexplorer-jobruns-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: localhost
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/init-db:/docker-entrypoint-initdb.d
+volumes:
+  pgdata: 

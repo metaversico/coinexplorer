@@ -1,0 +1,39 @@
+adm/db provides database initialization and (future) migration management for coinexplorer jobruns.
+
+- Initializes the jobruns database, user, and tables as required for adm/http and job orchestration.
+- Can be run as a standalone script or imported for custom setup.
+- Future: will manage schema migrations as the system evolves.
+
+## Usage
+
+Use via docker volume on postgres setup i.e. 
+
+version: '3.8'
+services:
+  postgres1:
+    image: postgres:15
+    container_name: coinexplorer-jobruns-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: localhost
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/init-db:/docker-entrypoint-initdb.d
+volumes:
+  pgdata: 
+
+## Schema
+
+- Creates user `jobruns` with password `jobruns` (if not exists)
+- Creates database `jobruns` (if not exists)
+- Creates table `job_runs` (if not exists):
+  - id SERIAL PRIMARY KEY
+  - jobname TEXT
+  - status TEXT
+  - started_at TIMESTAMPTZ
+  - finished_at TIMESTAMPTZ
+  - result JSONB 

@@ -69,6 +69,11 @@ export default async function admInit() {
   const newCrontab = [...filtered, ...jobLines].filter(Boolean).join("\n") + "\n";
   console.log("New crontab\n\n", newCrontab);
 
+  if (newCrontab === crontab) {
+    console.log("No changes to crontab");
+    return;
+  }
+
   console.log("Updating crontab");
   const cmd2 = new Deno.Command("crontab", { args: ["-"], stdin: "piped" });
   const child = cmd2.spawn();

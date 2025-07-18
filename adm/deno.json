@@ -1,6 +1,7 @@
 {
   "tasks": {
-    "dev": "deno run --watch --allow-all main.ts"
+    "dev": "deno task dev:db && deno run --watch --allow-all main.ts",
+    "dev:db": "docker-compose down -v && docker-compose up -d"
   },
   "imports": {
     "@std/assert": "jsr:@std/assert@1",
