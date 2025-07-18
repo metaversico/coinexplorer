@@ -86,6 +86,39 @@ router.post("/jobs/:jobname/run", async (ctx) => {
   ctx.response.body = { runId, status: "pending" };
 });
 
+function logHttpEvent({
+  level,
+  message,
+  method,
+  url,
+  status,
+  duration,
+  origin = "http",
+  extra = {},
+}: {
+  level: "info" | "error";
+  message: string;
+  method?: string;
+  url?: string;
+  status?: number | string;
+  duration?: number;
+  origin?: string;
+  extra?: Record<string, unknown>;
+}) {
+  const log = {
+    timestamp: new Date().toISOString(),
+    level,
+    origin,
+    message,
+    method,
+    url,
+    status,
+    duration,
+    ...extra,
+  };
+  console.log(JSON.stringify(log));
+}
+
 const app = new Application();
 
 // Prometheus metrics middleware
@@ -98,7 +131,14 @@ app.use(async (ctx, next) => {
   // Use the first segment of the path as action, or full path
   const action = url.pathname.split("/")[1] || "/";
   httpRequests.labels({ method, action: `/${action}`, status }).inc();
-  console.log(`${method} ${url.pathname} -> ${status} (${ms}ms)`);
+  logHttpEvent({
+    level: "info",
+    message: "HTTP request",
+    method,
+    url: url.pathname,
+    status,
+    duration: ms,
+  });
 });
 
 app.use(router.routes());

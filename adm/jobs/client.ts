@@ -1,6 +1,31 @@
 import { runningJobsGauge, queuedJobsGauge, jobsDroppedCounter, jobsRunCounter, jobsDurationHistogram } from "../metrics.ts";
 import { updateJobRun } from "../db/mod.ts";
 
+function logJobEvent({
+  runId,
+  jobname,
+  level,
+  message,
+  origin,
+}: {
+  runId: string;
+  jobname: string;
+  level: "info" | "error";
+  message: string;
+  origin: "stdout" | "stderr";
+}) {
+  const log = {
+    timestamp: new Date().toISOString(),
+    runId,
+    jobname,
+    level,
+    origin,
+    message,
+  };
+  // Use console.log for all logs; log level is in the JSON
+  console.log(JSON.stringify(log));
+}
+
 const MAX_JOBS_RUNNING = parseInt(Deno.env.get("MAX_JOBS_RUNNING") ?? "20", 10);
 const MAX_JOBS_QUEUED = parseInt(Deno.env.get("MAX_JOBS_QUEUED") ?? "50", 10);
 let runningJobs = 0;
@@ -9,7 +34,7 @@ const jobQueue: Array<{ jobname: string; runId: string }> = [];
 export function runJobCommand(
   jobname: string,
   runId: string,
-  onLog: (msg: string, isError: boolean) => void,
+  onLog?: (msg: string, isError: boolean) => void,
 ): Promise<{ success: boolean; code: number }> {
   const cmd = new Deno.Command("deno", {
     args: ["task", "adm:job:run", jobname, runId],
@@ -23,7 +48,17 @@ export function runJobCommand(
     while (true) {
       const { value, done } = await reader.read();
       if (done) break;
-      if (value) onLog(`[job:${runId}] ${decoder.decode(value).trim()}`, false);
+      if (value) {
+        const msg = decoder.decode(value).trim();
+        logJobEvent({
+          runId,
+          jobname,
+          level: "info",
+          message: msg,
+          origin: "stdout",
+        });
+        if (onLog) onLog(msg, false);
+      }
     }
     reader.releaseLock();
   })();
@@ -33,7 +68,17 @@ export function runJobCommand(
     while (true) {
       const { value, done } = await reader.read();
       if (done) break;
-      if (value) onLog(`[job:${runId}] ${decoder.decode(value).trim()}`, true);
+      if (value) {
+        const msg = decoder.decode(value).trim();
+        logJobEvent({
+          runId,
+          jobname,
+          level: "error",
+          message: msg,
+          origin: "stderr",
+        });
+        if (onLog) onLog(msg, true);
+      }
     }
     reader.releaseLock();
   })();
@@ -58,11 +103,7 @@ function onJobFinish() {
 function startJob(jobname: string, runId: string) {
   const start = Date.now();
   runJobCommand(jobname, runId, (msg, isError) => {
-    if (isError) {
-      console.error(msg);
-    } else {
-      console.log(msg);
-    }
+    // No-op: logs are handled by logJobEvent
   }).then(() => {
     const duration = (Date.now() - start) / 1000;
     jobsRunCounter.inc({ jobname });
