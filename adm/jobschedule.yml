@@ -1,0 +1,4 @@
+---
+- name: test-job
+  schedule: "*/1 * * * *"
+  job: test-job

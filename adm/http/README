@@ -1,0 +1,29 @@
+adm/http is an oak server serving
+
+- POST /jobs/:jobname/run
+- GET /runs/:id
+- GET /schedule
+- GET /metrics
+
+## Resources
+
+### POST /jobs/:jobname/run
+
+Creates a run id and runs target job via adm/run subprocess
+
+### GET /runs/:id
+
+Get status about target run
+
+### GET /schedule
+
+Get static schedule used for adm/init
+
+### GET /metrics
+
+Get Prometheus compatible metrics for the server and
+also per-job custom metrics.
+
+## Usage
+
+Import for custom setup or run main.ts

@@ -1,0 +1,12 @@
+{
+  "tasks": {
+    "dev": "deno run --watch main.ts",
+    "adm:init": "deno run --allow-all adm/init/main.ts",
+    "adm:run": "deno run --allow-all adm/run/main.ts",
+    "adm:http": "deno run --allow-all adm/http/main.ts"
+  },
+  "imports": {
+    "@std/assert": "jsr:@std/assert@1",
+    "@coinexplorer/jobs": "./jobs/mod.ts"
+  }
+}

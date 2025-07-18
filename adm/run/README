@@ -1,0 +1,3 @@
+adm/run provides standard metrics and logging
+to run @coinexplorer/jobs that is also compatible
+with adm/http

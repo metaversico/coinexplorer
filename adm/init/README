@@ -1,0 +1,3 @@
+adm/init is a runnable idempotent program designed to execute
+after each update to setup cronjobs that request
+job runs on adm/http based on jobschedule.yml.

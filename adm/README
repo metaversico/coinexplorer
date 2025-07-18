@@ -1,0 +1,34 @@
+flowchart LR
+    DEV["DEV"] --> CLI["CLI"]
+    CLI -----> CONTRACTS --> ADM[["ADM/HTTP"]]
+
+    subgraph CONTRACTS["CONTRACTS"]
+        POST[/"POST /jobs/&lt;id&gt;/run"/]
+        GETRUN[/"GET /runs/&lt;id&gt;"/] & GETSCH[/"GET /schedule"/] & GETMET[/"GET /metrics"/]
+    end
+
+    DEV["DEV"] ---> Deployment[[ADM/INIT]] --> Schedules
+    subgraph INIT["INITIALIZATION"]
+        Schedules@{ shape: doc, label: "Schedules" }
+        Schedules --> Crontab[["crontab"]]
+        Crontab --> Cron["Cron"]
+    end
+    Cron --> POST
+
+    ADM ---> Jobs[["ADM/JOBS"]]
+    subgraph OUTPUTS["WORKLOADS"]
+        Jobs --> JobsDB@{ shape: doc, label: "jobs/" }
+        Jobs --> Job
+        Job --> State[("State")]
+    end
+
+    Jobs --> SIDEEFFECTS
+    ADM ----> SIDEEFFECTS
+    subgraph SIDEEFFECTS["SIDE EFFECTS"]
+        Logs@{ shape: doc, label: "Logs" }
+        Metrics@{ shape: doc, label: "Metrics" }
+        RunStatus@{ shape: doc, label: "Status" }
+    end
+
+
+
