@@ -1,0 +1,19 @@
+adm/jobs is responsible for orchestrating and running jobs for coinexplorer adm.
+
+- Provides an interface for running jobs by name, as triggered by adm/http (POST /jobs/<name>/run)
+- Handles job execution, status tracking, and result collection
+- Integrates with jobruns database for run status and metrics
+- Can be extended to support new job types and orchestration logic
+
+## Usage
+
+- Import adm/jobs in adm/http or other orchestrators to trigger jobs by name
+- Expose a function like `runJob(name: string, params?: Record<string, unknown>): Promise<JobRunResult>`
+- Job execution should be idempotent and observable (logs, metrics)
+
+## Example
+
+```ts
+import { runJob } from "./mod.ts";
+const result = await runJob("download-solana-tokens");
+``` 

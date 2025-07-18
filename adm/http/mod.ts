@@ -80,6 +80,51 @@ router.get("/runs/:id", async (ctx) => {
   }
 });
 
+// POST /jobs/:jobname/run endpoint
+router.post("/jobs/:jobname/run", async (ctx) => {
+  const jobname = ctx.params.jobname;
+  if (!jobname) {
+    ctx.response.status = 400;
+    ctx.response.body = { error: "Missing jobname param" };
+    return;
+  }
+  // Insert run in DB
+  let pool;
+  let runId: string;
+  try {
+    pool = getPgPool();
+    const client = await pool.connect();
+    try {
+      runId = crypto.randomUUID();
+      const now = new Date().toISOString();
+      await client.queryObject(
+        "INSERT INTO job_runs (id, jobname, status, started_at) VALUES ($1, $2, $3, $4)",
+        [runId, jobname, "pending", now],
+      );
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    ctx.response.status = 500;
+    ctx.response.body = { error: "Failed to create job run", details: msg };
+    return;
+  }
+  // Spawn job runner in background
+  try {
+    const cmd = new Deno.Command("deno", {
+      args: ["task", "adm:job:run", jobname, runId],
+      stdout: "null",
+      stderr: "null",
+    });
+    cmd.spawn(); // Do not await
+  } catch (err) {
+    // Optionally update DB to error status
+  }
+  ctx.response.status = 202;
+  ctx.response.body = { runId, status: "pending" };
+});
+
 const app = new Application();
 
 // Prometheus metrics middleware

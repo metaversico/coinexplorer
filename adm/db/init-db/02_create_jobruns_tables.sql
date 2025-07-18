@@ -1,14 +1,15 @@
 -- Connect to jobruns DB
 \connect jobruns
 
--- Create table if not exists
-CREATE TABLE IF NOT EXISTS job_runs (
-  id SERIAL PRIMARY KEY,
+DROP TABLE IF EXISTS job_runs;
+CREATE TABLE job_runs (
+  id UUID PRIMARY KEY,
   jobname TEXT NOT NULL,
   status TEXT NOT NULL,
   started_at TIMESTAMPTZ DEFAULT now(),
   finished_at TIMESTAMPTZ,
-  result JSONB
+  result JSONB,
+  error TEXT
 );
 
 GRANT ALL PRIVILEGES ON DATABASE jobruns TO jobruns;
