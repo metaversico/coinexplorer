@@ -2,3 +2,6 @@
 - name: test-job
   schedule: "*/1 * * * *"
   job: test-job
+- name: solana-metadata
+  schedule: "0 0 * * *"
+  job: solana-metadata
