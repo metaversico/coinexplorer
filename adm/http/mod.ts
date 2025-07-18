@@ -19,7 +19,18 @@ router.get("/schedule", async (ctx) => {
 });
 
 const app = new Application();
+
+// Request logging middleware
+app.use(async (ctx, next) => {
+  const start = Date.now();
+  await next();
+  const ms = Date.now() - start;
+  const { method, url } = ctx.request;
+  const status = ctx.response.status;
+  console.log(`${method} ${url.pathname} -> ${status} (${ms}ms)`);
+});
+
 app.use(router.routes());
 app.use(router.allowedMethods());
 
-export default app.listen({ port: 8080 });
+export default app
