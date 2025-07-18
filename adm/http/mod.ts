@@ -1,6 +1,7 @@
 import { Application, Router } from "jsr:@oak/oak";
 import { parse } from "jsr:@std/yaml";
-import { Counter, Registry, collectDefaultMetrics } from "@prom-client";
+import { Counter, Registry } from "@prom-client";
+import { Pool } from "@postgres";
 
 const JOBSCHEDULE_PATH = new URL("../jobschedule.yml", import.meta.url).pathname;
 
@@ -13,6 +14,14 @@ const httpRequests = new Counter({
 
 const registry = new Registry();
 registry.registerMetric(httpRequests);
+
+// Postgres pool setup (lazy, per-request)
+function getPgPool() {
+  const connStr = Deno.env.get("JOBRUNS_PG_CONN");
+  if (!connStr) throw new Error("JOBRUNS_PG_CONN env not set");
+  // Pool size 3, lazy
+  return new Pool(connStr, 3, true);
+}
 
 const router = new Router();
 
@@ -31,10 +40,44 @@ router.get("/schedule", async (ctx) => {
 
 // /metrics endpoint for Prometheus
 router.get("/metrics", async (ctx) => {
-  // collectDefaultMetrics({ register: registry }); errors in Deno due to perf_hooks.monitorEventLoopDelay throwing notImplemented
   ctx.response.status = 200;
   ctx.response.type = "text/plain";
   ctx.response.body = await registry.metrics();
+});
+
+// GET /runs/:id endpoint
+router.get("/runs/:id", async (ctx) => {
+  const id = ctx.params.id;
+  if (!id) {
+    ctx.response.status = 400;
+    ctx.response.body = { error: "Missing id param" };
+    return;
+  }
+  let pool;
+  try {
+    pool = getPgPool();
+    const client = await pool.connect();
+    try {
+      // You may want to adjust the table/column names as per your schema
+      const result = await client.queryObject<{ id: string }>(
+        "SELECT * FROM job_runs WHERE id = $1",
+        [id],
+      );
+      if (result.rows.length === 0) {
+        ctx.response.status = 404;
+        ctx.response.body = { error: "Run not found" };
+      } else {
+        ctx.response.status = 200;
+        ctx.response.body = result.rows[0];
+      }
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    ctx.response.status = 500;
+    const msg = err instanceof Error ? err.message : String(err);
+    ctx.response.body = { error: "Failed to fetch run", details: msg };
+  }
 });
 
 const app = new Application();
