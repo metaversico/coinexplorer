@@ -78,14 +78,35 @@ router.post("/jobs/:jobname/run", async (ctx) => {
     ctx.response.body = { error: "Failed to create job run", details: msg };
     return;
   }
-  // Spawn job runner in background (timeout and command logic to be added next)
+  // Spawn job runner in background (with log piping)
   try {
     const cmd = new Deno.Command("deno", {
       args: ["task", "adm:job:run", jobname, runId],
-      stdout: "null",
-      stderr: "null",
+      stdout: "piped",
+      stderr: "piped",
     });
-    cmd.spawn(); // Do not await
+    const child = cmd.spawn();
+    // Pipe logs to server logs
+    (async () => {
+      const decoder = new TextDecoder();
+      const reader = child.stdout.getReader();
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        if (value) console.log(`[job:${runId}]`, decoder.decode(value).trim());
+      }
+      reader.releaseLock();
+    })();
+    (async () => {
+      const decoder = new TextDecoder();
+      const reader = child.stderr.getReader();
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        if (value) console.error(`[job:${runId}]`, decoder.decode(value).trim());
+      }
+      reader.releaseLock();
+    })();
   } catch (err) {
     // Optionally update DB to error status
   }
