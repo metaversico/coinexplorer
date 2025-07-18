@@ -1,7 +1,7 @@
 import { Application, Router } from "jsr:@oak/oak";
 import { parse } from "jsr:@std/yaml";
 import { Counter, Registry } from "@prom-client";
-import { Pool } from "@postgres";
+import { createJobRun, getJobRun } from "../db/mod.ts";
 
 const JOBSCHEDULE_PATH = new URL("../jobschedule.yml", import.meta.url).pathname;
 
@@ -14,14 +14,6 @@ const httpRequests = new Counter({
 
 const registry = new Registry();
 registry.registerMetric(httpRequests);
-
-// Postgres pool setup (lazy, per-request)
-function getPgPool() {
-  const connStr = Deno.env.get("JOBRUNS_PG_CONN");
-  if (!connStr) throw new Error("JOBRUNS_PG_CONN env not set");
-  // Pool size 3, lazy
-  return new Pool(connStr, 3, true);
-}
 
 const router = new Router();
 
@@ -53,25 +45,14 @@ router.get("/runs/:id", async (ctx) => {
     ctx.response.body = { error: "Missing id param" };
     return;
   }
-  let pool;
   try {
-    pool = getPgPool();
-    const client = await pool.connect();
-    try {
-      // You may want to adjust the table/column names as per your schema
-      const result = await client.queryObject<{ id: string }>(
-        "SELECT * FROM job_runs WHERE id = $1",
-        [id],
-      );
-      if (result.rows.length === 0) {
-        ctx.response.status = 404;
-        ctx.response.body = { error: "Run not found" };
-      } else {
-        ctx.response.status = 200;
-        ctx.response.body = result.rows[0];
-      }
-    } finally {
-      client.release();
+    const run = await getJobRun(id);
+    if (!run) {
+      ctx.response.status = 404;
+      ctx.response.body = { error: "Run not found" };
+    } else {
+      ctx.response.status = 200;
+      ctx.response.body = run;
     }
   } catch (err) {
     ctx.response.status = 500;
@@ -88,29 +69,16 @@ router.post("/jobs/:jobname/run", async (ctx) => {
     ctx.response.body = { error: "Missing jobname param" };
     return;
   }
-  // Insert run in DB
-  let pool;
   let runId: string;
   try {
-    pool = getPgPool();
-    const client = await pool.connect();
-    try {
-      runId = crypto.randomUUID();
-      const now = new Date().toISOString();
-      await client.queryObject(
-        "INSERT INTO job_runs (id, jobname, status, started_at) VALUES ($1, $2, $3, $4)",
-        [runId, jobname, "pending", now],
-      );
-    } finally {
-      client.release();
-    }
+    runId = await createJobRun(jobname);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     ctx.response.status = 500;
     ctx.response.body = { error: "Failed to create job run", details: msg };
     return;
   }
-  // Spawn job runner in background
+  // Spawn job runner in background (timeout and command logic to be added next)
   try {
     const cmd = new Deno.Command("deno", {
       args: ["task", "adm:job:run", jobname, runId],

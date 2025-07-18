@@ -1,22 +1,7 @@
 import jobs from "../../jobs/mod.ts";
-import { Pool } from "@postgres";
+import { updateJobRun } from "../db/mod.ts";
 
 const jobRegistry = jobs as Record<string, any>;
-
-async function updateRun(runId: string, fields: Record<string, unknown>) {
-  const pool = new Pool(Deno.env.get("JOBRUNS_PG_CONN")!, 3, true);
-  const client = await pool.connect();
-  try {
-    const sets = Object.keys(fields).map((k, i) => `${k} = $${i + 2}`).join(", ");
-    const values = [runId, ...Object.values(fields)];
-    await client.queryObject(
-      `UPDATE job_runs SET ${sets} WHERE id = $1`,
-      values,
-    );
-  } finally {
-    client.release();
-  }
-}
 
 if (import.meta.main) {
   const [jobname, runId, ...rest] = Deno.args;
@@ -32,13 +17,13 @@ if (import.meta.main) {
   let result, error;
   const startedAt = new Date().toISOString();
   if (runId) {
-    await updateRun(runId, { status: "running", started_at: startedAt });
+    await updateJobRun(runId, { status: "running", started_at: startedAt });
   }
   try {
     const params = { job: jobname, args: rest };
     result = await jobFn(params);
     if (runId) {
-      await updateRun(runId, {
+      await updateJobRun(runId, {
         status: "success",
         finished_at: new Date().toISOString(),
         result: result ? JSON.stringify(result) : null,
@@ -50,7 +35,7 @@ if (import.meta.main) {
   } catch (err) {
     error = err instanceof Error ? err.message : String(err);
     if (runId) {
-      await updateRun(runId, {
+      await updateJobRun(runId, {
         status: "error",
         finished_at: new Date().toISOString(),
         error,
