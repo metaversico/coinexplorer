@@ -7,7 +7,9 @@
     "adm:run": "deno run --allow-all adm/run/main.ts",
     "adm:http": "deno run --allow-all adm/http/main.ts",
     "adm:main": "deno run --allow-all adm/main.ts",
-    "adm:job:run": "deno run --allow-all adm/jobs/main.ts"
+    "adm:job:run": "deno run --allow-all adm/jobs/main.ts",
+    "dev:db:tools": "cd db/tools && docker-compose down -v && docker-compose up -d",
+    "dev:network": "docker network create coinexplorer-network"
   },
   "imports": {
     "@std/assert": "jsr:@std/assert@1",

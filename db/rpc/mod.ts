@@ -56,24 +56,33 @@ export async function updateRpcCall(id: string, fields: Partial<RpcCall>): Promi
   const pool = getPgPool();
   const client = await pool.connect();
   try {
-    const updates: string[] = [];
-    const values: any[] = [id];
-    let paramIndex = 2;
-
-    for (const [key, value] of Object.entries(fields)) {
-      if (value !== undefined) {
-        updates.push(`${key} = $${paramIndex}`);
-        values.push(value);
-        paramIndex++;
-      }
-    }
-
-    if (updates.length === 0) return;
-
-    await client.queryObject(
-      `UPDATE rpc_calls SET ${updates.join(', ')} WHERE id = $1`,
-      values
-    );
+    // Always update all fields, using COALESCE to keep old value if not provided
+    const query = `UPDATE rpc_calls SET
+      status = COALESCE($1, status),
+      executed_at = COALESCE($2, executed_at),
+      completed_at = COALESCE($3, completed_at),
+      result = COALESCE($4, result),
+      error = COALESCE($5, error),
+      retry_count = COALESCE($6, retry_count),
+      params = COALESCE($7, params),
+      priority = COALESCE($8, priority),
+      rate_limit_key = COALESCE($9, rate_limit_key),
+      job_id = COALESCE($10, job_id)
+      WHERE id = $11`;
+    const values = [
+      fields.status ?? null,
+      fields.executed_at ?? null,
+      fields.completed_at ?? null,
+      fields.result !== undefined ? JSON.stringify(fields.result) : null,
+      fields.error ?? null,
+      fields.retry_count ?? null,
+      fields.params !== undefined ? JSON.stringify(fields.params) : null,
+      fields.priority ?? null,
+      fields.rate_limit_key ?? null,
+      fields.job_id ?? null,
+      id
+    ];
+    await client.queryObject(query, values);
   } finally {
     client.release();
   }

@@ -1,15 +1,11 @@
 import { getRpcCallsByUrlPattern } from "../../db/rpc/mod.ts";
 import { processSolanaMetadataResults } from "../../src/rpc/processors/solana.ts";
+import { processSolanaSignatureResults } from "../../src/rpc/processors/solana-signatures.ts";
 
 const PROCESSING_BATCH_SIZE = parseInt(Deno.env.get("RPC_PROCESSING_BATCH_SIZE") ?? "50", 10);
 
 export default async function RunJob() {
-  console.log("Starting RPC result processor job");
-  
-  // Process Solana RPC results
   await processSolanaResults();
-  
-  console.log("RPC result processor job completed");
 }
 
 async function processSolanaResults() {
@@ -42,6 +38,9 @@ async function processSolanaResults() {
       switch (method) {
         case 'getAccountInfo':
           await processSolanaMetadataResults(calls);
+          break;
+        case 'getSignaturesForAddress':
+          await processSolanaSignatureResults(calls);
           break;
         // Add more method handlers as needed
         default:

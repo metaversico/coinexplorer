@@ -37,6 +37,8 @@ export default async function RunJob() {
       // Make the RPC call
       const response = await rpcClient.makeRpcCall(call);
       
+      console.log(response);
+      debugger;
       if (response.success) {
         // Mark as completed
         await updateRpcCall(call.id, {

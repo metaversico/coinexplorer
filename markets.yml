@@ -1,0 +1,13 @@
+---
+- name: GOGO/SOL
+  chain: solana
+  type: raydium-cpmm
+  address: 9TMk7W3871Gfwm3xMRCXW9791D4KcokprAqReuBGf2dY
+- name: GOGO/PIPI
+  chain: solana
+  type: raydium-clmm
+  address: 3G5chqbY3rfBsjwkUaTREa3eWkSix814reTDyP9zyaz3
+- name: GOGO/WPOND
+  chain: solana
+  type: raydium-cpmm
+  address: 4dZYxq34pbhawy5aPPHYnMeBjUNeS6LXrKTnhHPKSMSB

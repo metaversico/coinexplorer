@@ -13,5 +13,12 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./db/init-db:/docker-entrypoint-initdb.d
+    networks:
+      - coinexplorer-network
+
 volumes:
-  pgdata: 
+  pgdata:
+
+networks:
+  coinexplorer-network:
+    external: true
