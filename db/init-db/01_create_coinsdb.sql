@@ -1,0 +1,2 @@
+CREATE ROLE coins LOGIN PASSWORD 'coins';
+CREATE DATABASE coins OWNER coins;

@@ -1,7 +1,7 @@
 import { Application, Router } from "jsr:@oak/oak";
 import { parse } from "jsr:@std/yaml";
 import { registry, httpRequests } from "../metrics.ts";
-import { createJobRun, getJobRun } from "../db/mod.ts";
+import { createJobRun, getJobRun } from "../../db/mod.ts";
 import { queueJob } from "../jobs/client.ts";
 
 const JOBSCHEDULE_PATH = new URL("../jobschedule.yml", import.meta.url).pathname;

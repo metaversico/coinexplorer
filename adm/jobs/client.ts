@@ -1,5 +1,5 @@
 import { runningJobsGauge, queuedJobsGauge, jobsDroppedCounter, jobsRunCounter, jobsDurationHistogram } from "../metrics.ts";
-import { updateJobRun } from "../db/mod.ts";
+import { updateJobRun } from "../../db/mod.ts";
 
 function logJobEvent({
   runId,

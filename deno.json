@@ -1,6 +1,7 @@
 {
   "tasks": {
     "dev": "deno run --watch main.ts",
+    "dev:db": "docker-compose down -v && docker-compose up -d",
     "adm:db": "deno run --allow-all adm/db/main.ts",
     "adm:init": "deno run --allow-all adm/init/main.ts",
     "adm:run": "deno run --allow-all adm/run/main.ts",

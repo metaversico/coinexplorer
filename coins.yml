@@ -1,0 +1,12 @@
+- name: Gogo the Dragon
+  symbol: $GOGO
+  address: GoGoxxkBetBo4EYsHWhiyStVYkvbsAKdrp6dBpcy8a9E
+  chain: solana
+- name: Pipi the Pigeon
+  symbol: $PIPI
+  address: PiPixxLjD62b17B4CcsMUmYAbumrj2US1tHXKTannQs
+  chain: solana
+- name: WPOND
+  symbol: $WPOND
+  address: 3JgFwoYV74f6LwWjQWnr3YDPFnmBdwQfNyubv99jqUoq
+  chain: solana
