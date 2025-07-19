@@ -1,9 +1,21 @@
 import { Pool } from "@postgres";
 
+let _signaturesPgPool: Pool | null = null;
+
 function getPgPool() {
-  const connStr = Deno.env.get("JOBRUNS_PG_CONN");
-  if (!connStr) throw new Error("JOBRUNS_PG_CONN env not set");
-  return new Pool(connStr, 3, true);
+  if (!_signaturesPgPool) {
+    const connStr = Deno.env.get("JOBRUNS_PG_CONN");
+    if (!connStr) throw new Error("JOBRUNS_PG_CONN env not set");
+    _signaturesPgPool = new Pool(connStr, 3, true);
+  }
+  return _signaturesPgPool;
+}
+
+export async function closeSignaturesPgPool() {
+  if (_signaturesPgPool) {
+    await _signaturesPgPool.end();
+    _signaturesPgPool = null;
+  }
 }
 
 export interface Signature {

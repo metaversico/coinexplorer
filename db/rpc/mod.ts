@@ -1,10 +1,22 @@
 import { Pool } from "@postgres";
 import { RpcCall, RpcRequest } from "../../src/rpc/client.ts";
 
+let _rpcPgPool: Pool | null = null;
+
 function getPgPool() {
-  const connStr = Deno.env.get("JOBRUNS_PG_CONN");
-  if (!connStr) throw new Error("JOBRUNS_PG_CONN env not set");
-  return new Pool(connStr, 3, true);
+  if (!_rpcPgPool) {
+    const connStr = Deno.env.get("JOBRUNS_PG_CONN");
+    if (!connStr) throw new Error("JOBRUNS_PG_CONN env not set");
+    _rpcPgPool = new Pool(connStr, 3, true);
+  }
+  return _rpcPgPool;
+}
+
+export async function closeRpcPgPool() {
+  if (_rpcPgPool) {
+    await _rpcPgPool.end();
+    _rpcPgPool = null;
+  }
 }
 
 export async function createRpcCall(request: RpcRequest): Promise<string> {

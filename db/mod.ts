@@ -1,9 +1,21 @@
 import { Pool } from "@postgres";
 
+let _pgPool: Pool | null = null;
+
 function getPgPool() {
-  const connStr = Deno.env.get("JOBRUNS_PG_CONN");
-  if (!connStr) throw new Error("JOBRUNS_PG_CONN env not set");
-  return new Pool(connStr, 3, true);
+  if (!_pgPool) {
+    const connStr = Deno.env.get("JOBRUNS_PG_CONN");
+    if (!connStr) throw new Error("JOBRUNS_PG_CONN env not set");
+    _pgPool = new Pool(connStr, 3, true);
+  }
+  return _pgPool;
+}
+
+export async function closePgPool() {
+  if (_pgPool) {
+    await _pgPool.end();
+    _pgPool = null;
+  }
 }
 
 export async function createJobRun(jobname: string): Promise<string> {

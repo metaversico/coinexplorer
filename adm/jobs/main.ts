@@ -1,5 +1,6 @@
 import jobs from "../../jobs/mod.ts";
 import { updateJobRun } from "../../db/mod.ts";
+import { closeAllDbPools } from "../../db/cleanup.ts";
 
 import "jsr:@std/dotenv/load"
 
@@ -82,5 +83,7 @@ if (import.meta.main) {
     }
     
     Deno.exit(1);
+  } finally {
+    await closeAllDbPools();
   }
 } 
