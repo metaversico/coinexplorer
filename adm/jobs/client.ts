@@ -35,13 +35,16 @@ export function runJobCommand(
   jobname: string,
   runId: string,
   onLog?: (msg: string, isError: boolean) => void,
-): Promise<{ success: boolean; code: number }> {
+): Promise<{ success: boolean; code: number; error?: string }> {
   const cmd = new Deno.Command("deno", {
     args: ["task", "adm:job:run", jobname, runId],
     stdout: "piped",
     stderr: "piped",
   });
   const child = cmd.spawn();
+  
+  let stderrOutput = "";
+  
   (async () => {
     const decoder = new TextDecoder();
     const reader = child.stdout.getReader();
@@ -62,6 +65,7 @@ export function runJobCommand(
     }
     reader.releaseLock();
   })();
+
   (async () => {
     const decoder = new TextDecoder();
     const reader = child.stderr.getReader();
@@ -70,6 +74,7 @@ export function runJobCommand(
       if (done) break;
       if (value) {
         const msg = decoder.decode(value).trim();
+        stderrOutput += msg + "\n";
         logJobEvent({
           runId,
           jobname,
@@ -82,7 +87,20 @@ export function runJobCommand(
     }
     reader.releaseLock();
   })();
-  return child.status;
+  
+  return child.status.then((status) => {
+    if (!status.success && stderrOutput) {
+      return {
+        success: false,
+        code: status.code,
+        error: stderrOutput.trim(),
+      };
+    }
+    return {
+      success: status.success,
+      code: status.code,
+    };
+  });
 }
 
 function onJobFinish() {
@@ -104,10 +122,54 @@ function startJob(jobname: string, runId: string) {
   const start = Date.now();
   runJobCommand(jobname, runId, (msg, isError) => {
     // No-op: logs are handled by logJobEvent
-  }).then(() => {
+  }).then((result) => {
     const duration = (Date.now() - start) / 1000;
     jobsRunCounter.inc({ jobname });
     jobsDurationHistogram.observe({ jobname }, duration);
+    
+    // Update job run status with detailed error information
+    if (!result.success) {
+      const errorDetails = {
+        status: "failed",
+        error: result.error || `Job failed with exit code ${result.code}`,
+        exitCode: result.code,
+      };
+      updateJobRun(runId, errorDetails);
+      
+      // Log the complete error details
+      logJobEvent({
+        runId,
+        jobname,
+        level: "error",
+        message: `Job failed with exit code ${result.code}: ${result.error || "Unknown error"}`,
+        origin: "stderr",
+      });
+    } else {
+      updateJobRun(runId, { status: "completed" });
+    }
+    
+    onJobFinish();
+  }).catch((error) => {
+    const duration = (Date.now() - start) / 1000;
+    jobsRunCounter.inc({ jobname });
+    jobsDurationHistogram.observe({ jobname }, duration);
+    
+    // Handle unexpected errors (like process spawn failures)
+    const errorMessage = error instanceof Error ? error.stack || error.message : String(error);
+    updateJobRun(runId, { 
+      status: "failed", 
+      error: `Unexpected error: ${errorMessage}`,
+      exitCode: -1,
+    });
+    
+    logJobEvent({
+      runId,
+      jobname,
+      level: "error",
+      message: `Unexpected error running job: ${errorMessage}`,
+      origin: "stderr",
+    });
+    
     onJobFinish();
   });
 }

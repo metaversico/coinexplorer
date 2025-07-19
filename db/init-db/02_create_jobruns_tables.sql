@@ -9,7 +9,8 @@ CREATE TABLE job_runs (
   started_at TIMESTAMPTZ DEFAULT now(),
   finished_at TIMESTAMPTZ,
   result JSONB,
-  error TEXT
+  error TEXT,
+  exitcode INTEGER
 );
 
 GRANT ALL PRIVILEGES ON DATABASE jobruns TO jobruns;
