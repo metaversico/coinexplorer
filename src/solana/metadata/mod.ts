@@ -1,4 +1,5 @@
 import { parse } from "jsr:@std/yaml";
+import { createRpcCall } from "../../../db/rpc/mod.ts";
 
 const COINS_YML_PATH = new URL("../../../coins.yml", import.meta.url).pathname;
 const SOLANA_RPC_URL = Deno.env.get("SOLANA_RPC_URL") ?? "https://api.mainnet-beta.solana.com";
@@ -21,6 +22,27 @@ export async function loadCoinsFromYaml(): Promise<Coin[]> {
   return coins.filter((coin: Coin) => coin.chain === "solana");
 }
 
+export async function scheduleSolanaMetadataCalls(jobId?: string): Promise<string[]> {
+  const coins = await loadCoinsFromYaml();
+  const callIds: string[] = [];
+  
+  for (const coin of coins) {
+    const callId = await createRpcCall({
+      url: SOLANA_RPC_URL,
+      method: "getAccountInfo",
+      params: [coin.address, { encoding: "jsonParsed" }],
+      priority: 0,
+      rate_limit_key: "solana-mainnet",
+      job_id: jobId,
+    });
+    callIds.push(callId);
+    console.log(`Scheduled RPC call for: ${coin.symbol} (${coin.address}) - ID: ${callId}`);
+  }
+  
+  return callIds;
+}
+
+// Legacy function for backward compatibility
 export async function fetchSolanaMetadata(address: string): Promise<SolanaMetadata> {
   const res = await fetch(SOLANA_RPC_URL, {
     method: "POST",
@@ -36,6 +58,7 @@ export async function fetchSolanaMetadata(address: string): Promise<SolanaMetada
   return data;
 }
 
+// Legacy function for backward compatibility
 export async function processSolanaCoins(): Promise<Array<{ coin: Coin; metadata: SolanaMetadata }>> {
   const coins = await loadCoinsFromYaml();
   const results = [];

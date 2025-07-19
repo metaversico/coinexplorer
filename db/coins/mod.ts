@@ -1,7 +1,8 @@
 import { Pool } from "@postgres";
 import { Coin, SolanaMetadata, processSolanaCoins } from "../../src/solana/metadata/mod.ts";
 
-const COINS_PG_CONN = Deno.env.get("COINS_PG_CONN") ?? Deno.env.get("JOBRUNS_PG_CONN");
+const COINS_PG_CONN = Deno.env.get("COINS_PG_CONN");
+console.log("COINS_PG_CONN", COINS_PG_CONN);
 
 export interface CoinRecord {
   address: string;
@@ -13,7 +14,7 @@ export interface CoinRecord {
 
 export async function getCoinsPool(): Promise<Pool> {
   if (!COINS_PG_CONN) {
-    throw new Error("COINS_PG_CONN or JOBRUNS_PG_CONN env var required");
+    throw new Error("COINS_PG_CONN env var required");
   }
   return new Pool(COINS_PG_CONN, 3, true);
 }

@@ -5,3 +5,9 @@
 - name: solana-metadata
   schedule: "0 0 * * *"
   job: solana-metadata
+- name: rpc-executor
+  schedule: "* * * * *"
+  job: rpc-executor
+- name: rpc-processor
+  schedule: "*/2 * * * *"
+  job: rpc-processor
