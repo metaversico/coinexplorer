@@ -2,9 +2,8 @@ import { Pool } from "@postgres";
 
 export interface Receipt {
   id: string;
-  service_name: string;
-  resource_type: string;
-  resource_id: string;
+  origin_uri: string;
+  target_uri: string;
   action: string;
   metadata?: Record<string, any>;
   created_at: Date;
@@ -30,9 +29,8 @@ export async function closeReceiptsPgPool() {
 }
 
 export async function createReceipt(
-  serviceName: string,
-  resourceType: string,
-  resourceId: string,
+  originUri: string,
+  targetUri: string,
   action: string,
   metadata?: Record<string, any>,
   jobId?: string
@@ -41,15 +39,14 @@ export async function createReceipt(
   const client = await pool.connect();
   try {
     const query = `
-      INSERT INTO receipts (service_name, resource_type, resource_id, action, metadata, job_id)
-      VALUES ($1, $2, $3, $4, $5, $6)
+      INSERT INTO receipts (origin_uri, target_uri, action, metadata, job_id)
+      VALUES ($1, $2, $3, $4, $5)
       RETURNING *
     `;
     
     const result = await client.queryObject<Receipt>(query, [
-      serviceName,
-      resourceType,
-      resourceId,
+      originUri,
+      targetUri,
       action,
       JSON.stringify(metadata || {}),
       jobId
@@ -61,23 +58,22 @@ export async function createReceipt(
   }
 }
 
-export async function getReceiptsForResource(
-  resourceType: string,
-  resourceId: string,
-  serviceName?: string
+export async function getReceiptsForTarget(
+  targetUri: string,
+  originUri?: string
 ): Promise<Receipt[]> {
   const pool = getPgPool();
   const client = await pool.connect();
   try {
     let query = `
       SELECT * FROM receipts 
-      WHERE resource_type = $1 AND resource_id = $2
+      WHERE target_uri = $1
     `;
-    const params: any[] = [resourceType, resourceId];
+    const params: any[] = [targetUri];
     
-    if (serviceName) {
-      query += ` AND service_name = $3`;
-      params.push(serviceName);
+    if (originUri) {
+      query += ` AND origin_uri = $2`;
+      params.push(originUri);
     }
     
     query += ` ORDER BY created_at DESC`;
@@ -89,10 +85,9 @@ export async function getReceiptsForResource(
   }
 }
 
-export async function hasServiceProcessedResource(
-  serviceName: string,
-  resourceType: string,
-  resourceId: string,
+export async function hasOriginProcessedTarget(
+  originUri: string,
+  targetUri: string,
   action: string
 ): Promise<boolean> {
   const pool = getPgPool();
@@ -100,20 +95,22 @@ export async function hasServiceProcessedResource(
   try {
     const query = `
       SELECT 1 FROM receipts 
-      WHERE service_name = $1 AND resource_type = $2 AND resource_id = $3 AND action = $4
+      WHERE origin_uri = $1 AND target_uri = $2 AND action = $3
       LIMIT 1
     `;
     
-    const result = await client.queryObject(query, [serviceName, resourceType, resourceId, action]);
+    const result = await client.queryObject(query, [originUri, targetUri, action]);
     return result.rows.length > 0;
   } finally {
     client.release();
   }
 }
 
-export async function getUnprocessedResources(
-  resourceType: string,
-  serviceName: string,
+export async function getUnprocessedTargets(
+  resourceTable: string,
+  resourceIdColumn: string,
+  targetUriPrefix: string,
+  originUri: string,
   action: string,
   limit = 100
 ): Promise<string[]> {
@@ -121,19 +118,18 @@ export async function getUnprocessedResources(
   const client = await pool.connect();
   try {
     const query = `
-      SELECT DISTINCT r.id as resource_id
-      FROM ${resourceType} r
-      LEFT JOIN receipts rec ON rec.resource_type = $1 
-                            AND rec.resource_id = r.id::text 
-                            AND rec.service_name = $2 
+      SELECT DISTINCT r.${resourceIdColumn} as resource_id
+      FROM ${resourceTable} r
+      LEFT JOIN receipts rec ON rec.target_uri = $1 || '/' || r.${resourceIdColumn}::text
+                            AND rec.origin_uri = $2
                             AND rec.action = $3
       WHERE rec.id IS NULL
       LIMIT $4
     `;
     
     const result = await client.queryObject<{resource_id: string}>(query, [
-      resourceType,
-      serviceName,
+      targetUriPrefix,
+      originUri,
       action,
       limit
     ]);

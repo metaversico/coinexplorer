@@ -1,6 +1,6 @@
 import { getRpcCallsBySourceUrlPattern } from "../../db/rpc/mod.ts";
 import { storeSignatures } from "../../db/signatures/mod.ts";
-import { createReceipt, hasServiceProcessedResource } from "../../db/receipts/mod.ts";
+import { createReceipt, hasOriginProcessedTarget } from "../../db/receipts/mod.ts";
 
 const PROCESSING_BATCH_SIZE = parseInt(Deno.env.get("RPC_PROCESSING_BATCH_SIZE") ?? "50", 10);
 const SERVICE_NAME = "solana-signature-processor";
@@ -15,10 +15,9 @@ export default async function RunJob() {
   const filteredCalls = [];
   for (const call of signatureCalls) {
     if (call.method === 'getSignaturesForAddress') {
-      const alreadyProcessed = await hasServiceProcessedResource(
+      const alreadyProcessed = await hasOriginProcessedTarget(
         SERVICE_NAME,
-        "rpc_call",
-        call.id,
+        `rpc_call/${call.id}`,
         "processed_signatures"
       );
       if (!alreadyProcessed) {
@@ -58,8 +57,7 @@ export default async function RunJob() {
       // Create receipt to track that this service processed this RPC call
       await createReceipt(
         SERVICE_NAME,
-        "rpc_call",
-        call.id,
+        `rpc_call/${call.id}`,
         "processed_signatures",
         {
           address,

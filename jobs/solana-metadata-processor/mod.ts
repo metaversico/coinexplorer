@@ -1,6 +1,6 @@
 import { getRpcCallsBySourceUrlPattern } from "../../db/rpc/mod.ts";
 import { processSolanaMetadataResults } from "../../src/rpc/processors/solana.ts";
-import { createReceipt, hasServiceProcessedResource } from "../../db/receipts/mod.ts";
+import { createReceipt, hasOriginProcessedTarget } from "../../db/receipts/mod.ts";
 
 const PROCESSING_BATCH_SIZE = parseInt(Deno.env.get("RPC_PROCESSING_BATCH_SIZE") ?? "50", 10);
 const SERVICE_NAME = "solana-metadata-processor";
@@ -15,10 +15,9 @@ export default async function RunJob() {
   const filteredCalls = [];
   for (const call of metadataCalls) {
     if (call.method === 'getAccountInfo') {
-      const alreadyProcessed = await hasServiceProcessedResource(
+      const alreadyProcessed = await hasOriginProcessedTarget(
         SERVICE_NAME,
-        "rpc_call",
-        call.id,
+        `rpc_call/${call.id}`,
         "processed_metadata"
       );
       if (!alreadyProcessed) {
@@ -42,8 +41,7 @@ export default async function RunJob() {
     try {
       await createReceipt(
         SERVICE_NAME,
-        "rpc_call",
-        call.id,
+        `rpc_call/${call.id}`,
         "processed_metadata",
         {
           method: call.method,
