@@ -1,23 +1,30 @@
 ---
-- name: test-job
-  schedule: "*/1 * * * *"
-  job: test-job
-#- name: solana-metadata
-#  schedule: "0 0 * * *"
-#  job: solana-metadata
+#- name: test-job
+#  schedule: "* * * * *"
+#  job: test-job
+
+# Process RPC calls once every minute
 - name: rpc-executor
   schedule: "* * * * *"
   job: rpc-executor
-- name: solana-signature-processor
-  schedule: "*/2 * * * *"
-  job: solana-signature-processor
+
+# Process Solana metadata every day at midnight
+- name: solana-metadata
+  schedule: "0 0 * * *"
+  job: solana-metadata
 - name: solana-metadata-processor
-  schedule: "*/2 * * * *"
+  schedule: "1 0 * * *"
   job: solana-metadata-processor
+
+# Process Solana transactions once every minute
+
+
+- name: solana-signature-backfill
+  schedule: "*/10 * * * *"
+  job: solana-signature-backfill
+- name: solana-signature-processor
+  schedule: "*/15 * * * *"
+  job: solana-signature-processor
 - name: solana-transaction-downloader
-  schedule: "*/3 * * * *"
+  schedule: "*/5 * * * *"
   job: solana-transaction-downloader
-# Note: solana-signature-backfill is a one-time job, run manually when needed
-# - name: solana-signature-backfill
-#   schedule: "0 2 * * *"
-#   job: solana-signature-backfill
