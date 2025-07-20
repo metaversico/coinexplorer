@@ -51,9 +51,9 @@ export default async function RunJob() {
       }
       
       // Store the signatures
-      const insertedCount = await storeSignatures(address, result, call.id);
+      const insertedCount = await storeSignatures(result, call.id);
       
-      console.log(`Stored ${insertedCount} signatures for address ${address} (call: ${call.id})`);
+      console.log(`Stored ${insertedCount} signatures from address ${address} (call: ${call.id})`);
       
       // Create receipt to track that this service processed this RPC call
       await createReceipt(

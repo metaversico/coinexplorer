@@ -1,6 +1,6 @@
 import { parse } from "jsr:@std/yaml";
 import { createRpcCall } from "../../../db/rpc/mod.ts";
-import { getOldestSignatureByMarket } from "../../../db/signatures/mod.ts";
+import { getOldestSignature } from "../../../db/signatures/mod.ts";
 
 const MARKETS_YML_PATH = new URL("../../../markets.yml", import.meta.url).pathname;
 const SOLANA_RPC_URL = Deno.env.get("SOLANA_RPC_URL") ?? "https://api.mainnet-beta.solana.com";
@@ -26,18 +26,18 @@ export default async function RunJob(params: { job: string; args: string[] }) {
   
   const scheduledCalls: string[] = [];
   
-  // Process each market
+  // Get the global oldest signature across all markets
+  const oldestSignature = await getOldestSignature();
+  
+  // Process each market - markets now only direct what addresses to load signatures for
   for (const market of solanaMarkets) {
     console.log(`Processing market: ${market.name} (${market.address})`);
     
     try {
-      // Get the oldest signature for this market
-      const oldestSignature = await getOldestSignatureByMarket(market.address);
-      
       if (oldestSignature) {
-        console.log(`Found oldest signature for ${market.name}: ${oldestSignature.signature.substring(0, 8)}...`);
+        console.log(`Using global oldest signature: ${oldestSignature.signature.substring(0, 8)}... for market ${market.name}`);
         
-        // Schedule a single request from the oldest signature
+        // Schedule a request for this market's address using the global oldest signature as 'before'
         const callId = await scheduleSignatureCall(
           market.address, 
           runId, 
@@ -45,11 +45,11 @@ export default async function RunJob(params: { job: string; args: string[] }) {
         );
         scheduledCalls.push(callId);
         
-        console.log(`Scheduled signature call for ${market.name} from oldest signature - ID: ${callId}`);
+        console.log(`Scheduled signature call for ${market.name} from global oldest signature - ID: ${callId}`);
       } else {
-        console.log(`No signatures found for ${market.name}, scheduling initial call`);
+        console.log(`No signatures found globally, scheduling initial call for ${market.name}`);
         
-        // No signatures found, schedule initial call
+        // No signatures found globally, schedule initial call for this market
         const callId = await scheduleSignatureCall(market.address, runId);
         scheduledCalls.push(callId);
         
