@@ -17,8 +17,7 @@ export default async function RunJob() {
     if (call.method === 'getAccountInfo') {
       const alreadyProcessed = await hasOriginProcessedTarget(
         SERVICE_NAME,
-        `rpc_call/${call.id}`,
-        "processed_metadata"
+        `rpc_call/${call.id}`
       );
       if (!alreadyProcessed) {
         filteredCalls.push(call);
@@ -41,12 +40,7 @@ export default async function RunJob() {
     try {
       await createReceipt(
         SERVICE_NAME,
-        `rpc_call/${call.id}`,
-        "processed_metadata",
-        {
-          method: call.method,
-          params: call.params
-        }
+        `rpc_call/${call.id}`
       );
       
       console.log(`Created receipt for processing RPC call ${call.id}`);

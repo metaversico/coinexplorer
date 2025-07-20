@@ -29,13 +29,7 @@ export default async function RunJob(params: { job: string; args: string[] }) {
         
         await createReceipt(
           "solana-transaction-downloader",
-          `signature/${signature.signature}`,
-          "download",
-          {
-            signature_id: signature.id,
-            processed_at: new Date().toISOString(),
-          },
-          jobId
+          `signature/${signature.signature}`
         );
 
         processedCount++;

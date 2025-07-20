@@ -4,10 +4,7 @@ export interface Receipt {
   id: string;
   origin_uri: string;
   target_uri: string;
-  action: string;
-  metadata?: Record<string, any>;
   created_at: Date;
-  job_id?: string;
 }
 
 let _receiptsPgPool: Pool | null = null;
@@ -30,26 +27,20 @@ export async function closeReceiptsPgPool() {
 
 export async function createReceipt(
   originUri: string,
-  targetUri: string,
-  action: string,
-  metadata?: Record<string, any>,
-  jobId?: string
+  targetUri: string
 ): Promise<Receipt> {
   const pool = getPgPool();
   const client = await pool.connect();
   try {
     const query = `
-      INSERT INTO receipts (origin_uri, target_uri, action, metadata, job_id)
-      VALUES ($1, $2, $3, $4, $5)
+      INSERT INTO receipts (origin_uri, target_uri)
+      VALUES ($1, $2)
       RETURNING *
     `;
     
     const result = await client.queryObject<Receipt>(query, [
       originUri,
-      targetUri,
-      action,
-      JSON.stringify(metadata || {}),
-      jobId
+      targetUri
     ]);
     
     return result.rows[0];
@@ -87,19 +78,18 @@ export async function getReceiptsForTarget(
 
 export async function hasOriginProcessedTarget(
   originUri: string,
-  targetUri: string,
-  action: string
+  targetUri: string
 ): Promise<boolean> {
   const pool = getPgPool();
   const client = await pool.connect();
   try {
     const query = `
       SELECT 1 FROM receipts 
-      WHERE origin_uri = $1 AND target_uri = $2 AND action = $3
+      WHERE origin_uri = $1 AND target_uri = $2
       LIMIT 1
     `;
     
-    const result = await client.queryObject(query, [originUri, targetUri, action]);
+    const result = await client.queryObject(query, [originUri, targetUri]);
     return result.rows.length > 0;
   } finally {
     client.release();
@@ -111,7 +101,6 @@ export async function getUnprocessedTargets(
   resourceIdColumn: string,
   targetUriPrefix: string,
   originUri: string,
-  action: string,
   limit = 100
 ): Promise<string[]> {
   const pool = getPgPool();
@@ -122,15 +111,13 @@ export async function getUnprocessedTargets(
       FROM ${resourceTable} r
       LEFT JOIN receipts rec ON rec.target_uri = $1 || '/' || r.${resourceIdColumn}::text
                             AND rec.origin_uri = $2
-                            AND rec.action = $3
       WHERE rec.id IS NULL
-      LIMIT $4
+      LIMIT $3
     `;
     
     const result = await client.queryObject<{resource_id: string}>(query, [
       targetUriPrefix,
       originUri,
-      action,
       limit
     ]);
     

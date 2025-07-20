@@ -17,8 +17,7 @@ export default async function RunJob() {
     if (call.method === 'getSignaturesForAddress') {
       const alreadyProcessed = await hasOriginProcessedTarget(
         SERVICE_NAME,
-        `rpc_call/${call.id}`,
-        "processed_signatures"
+        `rpc_call/${call.id}`
       );
       if (!alreadyProcessed) {
         filteredCalls.push(call);
@@ -57,13 +56,7 @@ export default async function RunJob() {
       // Create receipt to track that this service processed this RPC call
       await createReceipt(
         SERVICE_NAME,
-        `rpc_call/${call.id}`,
-        "processed_signatures",
-        {
-          address,
-          signatures_count: insertedCount,
-          method: call.method
-        }
+        `rpc_call/${call.id}`
       );
       
       console.log(`Created receipt for processing RPC call ${call.id}`);
