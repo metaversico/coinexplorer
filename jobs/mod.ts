@@ -5,6 +5,7 @@ import RpcExecutorJob from "./rpc-executor/mod.ts";
 import SolanaSignatureBackfillJob from "./solana/signature-backfill/mod.ts";
 import SolanaSignatureProcessorJob from "./solana-signature-processor/mod.ts";
 import SolanaMetadataProcessorJob from "./solana-metadata-processor/mod.ts";
+import SolanaTransactionDownloaderJob from "./solana-transaction-downloader/mod.ts";
 
 export default {
   "test-job": TestJob,
@@ -14,4 +15,5 @@ export default {
   "solana-signature-backfill": SolanaSignatureBackfillJob,
   "solana-signature-processor": SolanaSignatureProcessorJob,
   "solana-metadata-processor": SolanaMetadataProcessorJob,
+  "solana-transaction-downloader": SolanaTransactionDownloaderJob,
 };
