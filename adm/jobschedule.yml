@@ -8,9 +8,12 @@
 - name: rpc-executor
   schedule: "* * * * *"
   job: rpc-executor
-- name: rpc-processor
+- name: solana-signature-processor
   schedule: "*/2 * * * *"
-  job: rpc-processor
+  job: solana-signature-processor
+- name: solana-metadata-processor
+  schedule: "*/2 * * * *"
+  job: solana-metadata-processor
 # Note: solana-signature-backfill is a one-time job, run manually when needed
 # - name: solana-signature-backfill
 #   schedule: "0 2 * * *"
