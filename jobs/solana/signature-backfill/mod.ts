@@ -1,6 +1,6 @@
 import { parse } from "jsr:@std/yaml";
 import { createRpcCall } from "../../../db/rpc/mod.ts";
-import { getLatestSignatureByMarket } from "../../../db/signatures/mod.ts";
+import { getOldestSignatureByMarket } from "../../../db/signatures/mod.ts";
 
 const MARKETS_YML_PATH = new URL("../../../markets.yml", import.meta.url).pathname;
 const SOLANA_RPC_URL = Deno.env.get("SOLANA_RPC_URL") ?? "https://api.mainnet-beta.solana.com";
@@ -31,21 +31,21 @@ export default async function RunJob(params: { job: string; args: string[] }) {
     console.log(`Processing market: ${market.name} (${market.address})`);
     
     try {
-      // Get the latest signature for this market
-      const latestSignature = await getLatestSignatureByMarket(market.address);
+      // Get the oldest signature for this market
+      const oldestSignature = await getOldestSignatureByMarket(market.address);
       
-      if (latestSignature) {
-        console.log(`Found latest signature for ${market.name}: ${latestSignature.signature.substring(0, 8)}...`);
+      if (oldestSignature) {
+        console.log(`Found oldest signature for ${market.name}: ${oldestSignature.signature.substring(0, 8)}...`);
         
-        // Schedule a single request from the latest signature
+        // Schedule a single request from the oldest signature
         const callId = await scheduleSignatureCall(
           market.address, 
           runId, 
-          latestSignature.signature
+          oldestSignature.signature
         );
         scheduledCalls.push(callId);
         
-        console.log(`Scheduled signature call for ${market.name} from latest signature - ID: ${callId}`);
+        console.log(`Scheduled signature call for ${market.name} from oldest signature - ID: ${callId}`);
       } else {
         console.log(`No signatures found for ${market.name}, scheduling initial call`);
         

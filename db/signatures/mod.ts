@@ -137,6 +137,23 @@ export async function getLatestSignatureByMarket(marketAddress: string): Promise
   }
 }
 
+export async function getOldestSignatureByMarket(marketAddress: string): Promise<Signature | null> {
+  const pool = getPgPool();
+  const client = await pool.connect();
+  try {
+    const result = await client.queryObject<Signature>(
+      `SELECT * FROM signatures 
+       WHERE market_address = $1 
+       ORDER BY block_time ASC, created_at ASC
+       LIMIT 1`,
+      [marketAddress]
+    );
+    return result.rows[0] || null;
+  } finally {
+    client.release();
+  }
+}
+
 export async function getSignaturesByTimeRange(
   marketAddress: string,
   startTime: number,

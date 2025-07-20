@@ -36,7 +36,7 @@ export interface RpcResponse {
 export class RpcClient {
   private rateLimiters: Map<string, { lastCall: number; interval: number }> = new Map();
 
-  constructor(private defaultRateLimitMs: number = 1200) {}
+  constructor(private defaultRateLimitMs: number = 3000) {}
 
   async makeRpcCall(call: RpcCall): Promise<RpcResponse> {
     // Apply rate limiting
@@ -99,17 +99,17 @@ export class RpcClient {
     console.log("rateLimitKey", rateLimitKey);
     console.log(limiter);
 
-    const now = Date.now();
-    const timeSinceLastCall = now - limiter.lastCall;
+    const timeSinceLastCall = Date.now() - limiter.lastCall;
 
     if (timeSinceLastCall < limiter.interval) {
-      console.log("waiting for rate limit", limiter.interval - timeSinceLastCall);
       const waitTime = limiter.interval - timeSinceLastCall;
+
+      console.log(Date.now(), "waiting", waitTime);
       await new Promise(resolve => setTimeout(resolve, waitTime));
     }
-    console.log('--------------------------------');
 
     limiter.lastCall = Date.now();
+    console.log(Date.now(),'last call', limiter.lastCall);
     this.rateLimiters.set(rateLimitKey, limiter);
   }
 

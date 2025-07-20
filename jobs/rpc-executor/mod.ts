@@ -8,7 +8,7 @@ export default async function RunJob() {
   const rpcClient = new RpcClient(DEFAULT_RATE_LIMIT_MS);
   
   // Set up rate limits for common RPC endpoints
-  rpcClient.setRateLimit("solana-mainnet", 1200); // 1 call per second
+  rpcClient.setRateLimit("solana-mainnet", 3000); // 1 call per second
   rpcClient.setRateLimit("solana-devnet", 500);   // 2 calls per second
   
   console.log(`Starting RPC executor job, max calls per run: ${MAX_RPC_CALLS_PER_RUN}`);
