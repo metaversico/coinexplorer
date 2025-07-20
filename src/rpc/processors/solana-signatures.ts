@@ -1,7 +1,7 @@
-import { RpcCall } from "../client.ts";
+import { RpcCallWithResults } from "../client.ts";
 import { storeSignatures } from "../../../db/signatures/mod.ts";
 
-export async function processSolanaSignatureResults(calls: RpcCall[]) {
+export async function processSolanaSignatureResults(calls: RpcCallWithResults[]) {
   console.log(`Processing ${calls.length} Solana signature results`);
   
   for (const call of calls) {
@@ -13,15 +13,15 @@ export async function processSolanaSignatureResults(calls: RpcCall[]) {
         continue;
       }
       
-      // Get the result data
-      const result = call.result;
+      // Get the result data from the results array
+      const result = call.results?.find(r => r.result && !r.error)?.result;
       if (!result) {
         console.log(`Skipping call ${call.id}: no result data`);
         continue;
       }
       
       // Store the signatures
-      const insertedCount = await storeSignatures(address, result, call.id);
+      const insertedCount = await storeSignatures(result, call.id);
       
       console.log(`Stored ${insertedCount} signatures for address ${address} (call: ${call.id})`);
       

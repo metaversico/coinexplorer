@@ -1,6 +1,5 @@
 export interface RpcCall {
   id: string;
-  url: string;
   method: string;
   params: any;
   status: 'pending' | 'running' | 'completed' | 'failed';
@@ -9,8 +8,6 @@ export interface RpcCall {
   scheduled_at: string;
   executed_at?: string;
   completed_at?: string;
-  result?: any;
-  error?: string;
   retry_count: number;
   max_retries: number;
   rate_limit_key?: string;
@@ -18,12 +15,25 @@ export interface RpcCall {
 }
 
 export interface RpcRequest {
-  url: string;
   method: string;
   params: any;
   priority?: number;
   rate_limit_key?: string;
   job_id?: string;
+}
+
+export interface RpcCallResult {
+  id: string;
+  rpc_call_id: string;
+  source_url: string;
+  result?: any;
+  error?: string;
+  created_at: string;
+  completed_at?: string;
+}
+
+export interface RpcCallWithResults extends RpcCall {
+  results: RpcCallResult[];
 }
 
 export interface RpcResponse {
@@ -38,14 +48,14 @@ export class RpcClient {
 
   constructor(private defaultRateLimitMs: number = 3000) {}
 
-  async makeRpcCall(call: RpcCall): Promise<RpcResponse> {
+  async makeRpcCall(call: RpcCall, url: string): Promise<RpcResponse> {
     // Apply rate limiting
     if (call.rate_limit_key) {
       await this.waitForRateLimit(call.rate_limit_key);
     }
 
     try {
-      const response = await fetch(call.url, {
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

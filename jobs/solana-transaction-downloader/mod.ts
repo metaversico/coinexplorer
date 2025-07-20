@@ -75,7 +75,6 @@ async function scheduleTransactionDownload(signature: string, jobId: string): Pr
   ];
 
   return await createRpcCall({
-    url: SOLANA_RPC_URL,
     method: "getTransaction",
     params,
     priority: 5,

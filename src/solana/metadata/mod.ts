@@ -28,7 +28,6 @@ export async function scheduleSolanaMetadataCalls(jobId?: string): Promise<strin
   
   for (const coin of coins) {
     const callId = await createRpcCall({
-      url: SOLANA_RPC_URL,
       method: "getAccountInfo",
       params: [coin.address, { encoding: "jsonParsed" }],
       priority: 0,

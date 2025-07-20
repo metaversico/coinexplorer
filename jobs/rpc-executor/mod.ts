@@ -1,8 +1,9 @@
 import { RpcClient } from "../../src/rpc/client.ts";
-import { getPendingRpcCalls, updateRpcCall } from "../../db/rpc/mod.ts";
+import { getPendingRpcCalls, updateRpcCall, createRpcCallResult } from "../../db/rpc/mod.ts";
 
 const MAX_RPC_CALLS_PER_RUN = parseInt(Deno.env.get("MAX_RPC_CALLS_PER_RUN") ?? "10", 10);
 const DEFAULT_RATE_LIMIT_MS = parseInt(Deno.env.get("DEFAULT_RATE_LIMIT_MS") ?? "1000", 10);
+const SOLANA_RPC_URL = Deno.env.get("SOLANA_RPC_URL") ?? "https://api.mainnet-beta.solana.com";
 
 export default async function RunJob() {
   const rpcClient = new RpcClient(DEFAULT_RATE_LIMIT_MS);
@@ -32,18 +33,21 @@ export default async function RunJob() {
         executed_at: new Date().toISOString(),
       });
       
-      console.log(`Executing RPC call ${call.id} to ${call.url} (${call.method})`);
+      console.log(`Executing RPC call ${call.id} to ${SOLANA_RPC_URL} (${call.method})`);
       
       // Make the RPC call
-      const response = await rpcClient.makeRpcCall(call);
+      const response = await rpcClient.makeRpcCall(call, SOLANA_RPC_URL);
   
       if (response.success) {
         // Mark as completed
         await updateRpcCall(call.id, {
           status: 'completed',
           completed_at: new Date().toISOString(),
-          result: response.result,
         });
+        
+        // Store result in separate table
+        await createRpcCallResult(call.id, SOLANA_RPC_URL, response.result);
+        
         console.log(`RPC call ${call.id} completed successfully`);
       } else {
         // Handle failure
@@ -53,9 +57,13 @@ export default async function RunJob() {
         await updateRpcCall(call.id, {
           status: newStatus,
           completed_at: new Date().toISOString(),
-          error: response.error,
           retry_count: call.retry_count + 1,
         });
+        
+        // Store error result in separate table
+        if (!shouldRetry) {
+          await createRpcCallResult(call.id, SOLANA_RPC_URL, undefined, response.error);
+        }
         
         if (shouldRetry) {
           console.log(`RPC call ${call.id} failed, will retry (${call.retry_count + 1}/${call.max_retries}): ${response.error}`);
@@ -69,8 +77,10 @@ export default async function RunJob() {
       await updateRpcCall(call.id, {
         status: 'failed',
         completed_at: new Date().toISOString(),
-        error: `Unexpected error: ${errorMessage}`,
       });
+      
+      // Store error result in separate table
+      await createRpcCallResult(call.id, SOLANA_RPC_URL, undefined, `Unexpected error: ${errorMessage}`);
       console.log(`Unexpected error processing RPC call ${call.id}: ${errorMessage}`);
     }
   }

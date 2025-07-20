@@ -1,8 +1,8 @@
-import { RpcCall } from "../client.ts";
+import { RpcCallWithResults } from "../client.ts";
 import { getCoinsPool, upsertCoin } from "../../../db/coins/mod.ts";
 import { Coin } from "../../solana/metadata/mod.ts";
 
-export async function processSolanaMetadataResults(calls: RpcCall[]) {
+export async function processSolanaMetadataResults(calls: RpcCallWithResults[]) {
   const pool = await getCoinsPool();
   
   try {
@@ -25,8 +25,8 @@ export async function processSolanaMetadataResults(calls: RpcCall[]) {
           continue;
         }
         
-        // Get the result data
-        const result = call.result;
+        // Get the result data from the results array
+        const result = call.results?.find(r => r.result && !r.error)?.result;
         if (!result) {
           console.log(`Skipping call ${call.id}: no result data`);
           continue;

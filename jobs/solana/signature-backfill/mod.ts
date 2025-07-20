@@ -87,7 +87,6 @@ async function scheduleSignatureCall(
   }
   
   const callId = await createRpcCall({
-    url: SOLANA_RPC_URL,
     method: "getSignaturesForAddress",
     params,
     priority: 1, // Higher priority for backfill

@@ -1,4 +1,4 @@
-import { getRpcCallsByUrlPattern } from "../../db/rpc/mod.ts";
+import { getRpcCallsBySourceUrlPattern } from "../../db/rpc/mod.ts";
 import { processSolanaMetadataResults } from "../../src/rpc/processors/solana.ts";
 import { createReceipt, hasServiceProcessedResource } from "../../db/receipts/mod.ts";
 
@@ -9,7 +9,7 @@ export default async function RunJob() {
   console.log(`Starting ${SERVICE_NAME} job`);
   
   // Get completed Solana metadata RPC calls
-  const metadataCalls = await getRpcCallsByUrlPattern("%solana%", PROCESSING_BATCH_SIZE);
+  const metadataCalls = await getRpcCallsBySourceUrlPattern("%solana%", PROCESSING_BATCH_SIZE);
   
   // Filter only getAccountInfo calls that haven't been processed yet
   const filteredCalls = [];

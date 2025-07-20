@@ -1,4 +1,4 @@
-import { getRpcCallsByUrlPattern } from "../../db/rpc/mod.ts";
+import { getRpcCallsBySourceUrlPattern } from "../../db/rpc/mod.ts";
 import { storeSignatures } from "../../db/signatures/mod.ts";
 import { createReceipt, hasServiceProcessedResource } from "../../db/receipts/mod.ts";
 
@@ -9,7 +9,7 @@ export default async function RunJob() {
   console.log(`Starting ${SERVICE_NAME} job`);
   
   // Get completed Solana signature RPC calls
-  const signatureCalls = await getRpcCallsByUrlPattern("%solana%", PROCESSING_BATCH_SIZE);
+  const signatureCalls = await getRpcCallsBySourceUrlPattern("%solana%", PROCESSING_BATCH_SIZE);
   
   // Filter only getSignaturesForAddress calls that haven't been processed yet
   const filteredCalls = [];
@@ -43,8 +43,8 @@ export default async function RunJob() {
         continue;
       }
       
-      // Get the result data
-      const result = call.result;
+      // Get the result data from the results array
+      const result = call.results?.find(r => r.result && !r.error)?.result;
       if (!result) {
         console.log(`Skipping call ${call.id}: no result data`);
         continue;
