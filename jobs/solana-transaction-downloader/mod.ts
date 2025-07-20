@@ -1,10 +1,10 @@
-import { createRpcCall } from "../../db/rpc/mod.ts";
-import { getSignatures } from "../../db/signatures/mod.ts";
-import { createReceipt, hasServiceProcessedResource } from "../../db/receipts/mod.ts";
+import { createRpcCall, getSignaturesWithoutTransactionData } from "../../db/rpc/mod.ts";
+import { createReceipt } from "../../db/receipts/mod.ts";
 import { createJobRun } from "../../db/mod.ts";
 
 const SOLANA_RPC_URL = Deno.env.get("SOLANA_RPC_URL") || "https://api.mainnet-beta.solana.com";
 const BATCH_SIZE = parseInt(Deno.env.get("SIGNATURE_BATCH_SIZE") || "100");
+const REQUESTS_PER_RUN = parseInt(Deno.env.get("SOLANA_TXNS_REQUESTS_PER_RUN") || "10");
 const MAX_ENCODING = "base64";
 
 export default async function RunJob(params: { job: string; args: string[] }) {
@@ -13,30 +13,18 @@ export default async function RunJob(params: { job: string; args: string[] }) {
 
   try {
     let processedCount = 0;
-    let skippedCount = 0;
     let errorCount = 0;
 
-    const signatures = await getSignatures(BATCH_SIZE);
-    console.log(`Found ${signatures.length} signatures to process`);
+    const signatures = await getSignaturesWithoutTransactionData(BATCH_SIZE);
+    console.log(`Found ${signatures.length} signatures without transaction data, will process up to ${REQUESTS_PER_RUN} requests`);
 
     for (const signature of signatures) {
+      if (processedCount >= REQUESTS_PER_RUN) {
+        console.log(`Reached limit of ${REQUESTS_PER_RUN} requests, exiting`);
+        break;
+      }
+
       try {
-        if (await hasServiceProcessedResource(
-          "solana-transaction-downloader",
-          "signature",
-          signature.signature,
-          "download"
-        )) {
-          skippedCount++;
-          continue;
-        }
-
-        if (!signature.signature) {
-          console.warn(`Skipping signature with missing signature field: ${signature.id}`);
-          skippedCount++;
-          continue;
-        }
-
         await scheduleTransactionDownload(signature.signature, jobId);
         
         await createReceipt(
@@ -58,7 +46,7 @@ export default async function RunJob(params: { job: string; args: string[] }) {
       }
     }
 
-    console.log(`Job completed: ${processedCount} processed, ${skippedCount} skipped, ${errorCount} errors`);
+    console.log(`Job completed: ${processedCount} processed, ${errorCount} errors`);
   } catch (error) {
     console.error(`Job failed:`, error);
     throw error;

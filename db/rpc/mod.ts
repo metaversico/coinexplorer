@@ -243,4 +243,28 @@ export async function getRpcCallsByJobId(jobId: string): Promise<RpcCall[]> {
   } finally {
     client.release();
   }
+}
+
+export async function getSignaturesWithoutTransactionData(limit: number = 100): Promise<{signature: string, id: string}[]> {
+  const pool = getPgPool();
+  const client = await pool.connect();
+  try {
+    const result = await client.queryObject<{signature: string, id: string}>(
+      `SELECT s.signature, s.id
+       FROM signatures s
+       LEFT JOIN rpc_calls rc ON rc.method = 'getTransaction' 
+         AND rc.params::jsonb->>0 = s.signature
+         AND rc.status = 'completed'
+       LEFT JOIN rpc_call_results rcr ON rc.id = rcr.rpc_call_id
+         AND rcr.result IS NOT NULL
+       WHERE rcr.id IS NULL
+       AND s.signature IS NOT NULL
+       ORDER BY s.block_time DESC, s.created_at DESC
+       LIMIT $1`,
+      [limit]
+    );
+    return result.rows;
+  } finally {
+    client.release();
+  }
 } 
