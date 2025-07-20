@@ -1,0 +1,36 @@
+jobs/rpc-executor executes pending RPC calls stored in the database with rate limiting and retry logic.
+
+- Processes pending RPC calls from the database in batches
+- Implements configurable rate limiting per RPC endpoint
+- Handles retries with exponential backoff for failed calls
+- Updates call status and stores results in the database
+- Supports multiple blockchain networks with different rate limits
+
+## Usage
+
+Run as a scheduled job to process queued RPC calls:
+
+```ts
+import { runJob } from "../adm/jobs/mod.ts";
+const result = await runJob("rpc-executor");
+```
+
+## Configuration
+
+Environment variables:
+- `MAX_RPC_CALLS_PER_RUN` - Maximum calls to process per job run (default: 10)
+- `DEFAULT_RATE_LIMIT_MS` - Default rate limit between calls in milliseconds (default: 1000)
+
+Rate limits are configured per network:
+- Solana mainnet: 3000ms (1 call per 3 seconds)
+- Solana devnet: 500ms (2 calls per second)
+
+## Job Flow
+
+1. Fetches pending RPC calls from database (limited by MAX_RPC_CALLS_PER_RUN)
+2. For each call:
+   - Updates status to 'running'
+   - Executes RPC call with appropriate rate limiting
+   - Updates status to 'completed' or 'failed' based on result
+   - Handles retries for failed calls up to max_retries limit
+3. Logs execution results and metrics

@@ -1,0 +1,29 @@
+jobs/test-error is a test job that deliberately throws an error for testing error handling.
+
+- Throws a deliberate error with stack trace for testing purposes
+- Used to verify job runner error handling and logging
+- Tests job status updates when jobs fail unexpectedly
+- Validates error reporting and monitoring systems
+
+## Usage
+
+Run to test error handling in job execution:
+
+```ts
+import { runJob } from "../adm/jobs/mod.ts";
+const result = await runJob("test-error");
+```
+
+## Expected Behavior
+
+The job will:
+1. Throw an Error with message "This is a test error with a stack trace"
+2. Job status should be marked as 'failed' in the database
+3. Error details should be logged and stored for monitoring
+
+## Job Flow
+
+1. Starts execution
+2. Immediately throws an Error
+3. Job runner catches error and updates job status
+4. Error is logged with stack trace information

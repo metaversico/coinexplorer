@@ -1,0 +1,27 @@
+jobs/test-job is a simple test job for verifying job orchestration and execution.
+
+- Provides a minimal job implementation for testing the job runner
+- Logs a "Hello World" message with the job name parameter
+- Used for validating job scheduling, execution, and status tracking
+- Serves as a template for developing new job types
+
+## Usage
+
+Run as a test to verify job execution:
+
+```ts
+import { runJob } from "../adm/jobs/mod.ts";
+const result = await runJob("test-job");
+```
+
+## Example Output
+
+```
+Hello World from test-job
+```
+
+## Job Flow
+
+1. Receives job name parameter from job runner
+2. Logs simple message including the job name
+3. Completes successfully for testing purposes

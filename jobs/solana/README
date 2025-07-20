@@ -1,0 +1,19 @@
+jobs/solana contains Solana-specific data collection jobs for metadata and transaction processing.
+
+- metadata-job.ts - Schedules RPC calls to collect Solana token metadata
+- signature-backfill/ - Backfills transaction signatures for Solana markets
+
+These jobs work in coordination with rpc-executor and rpc-processor to:
+1. Schedule data collection requests
+2. Execute RPC calls with rate limiting  
+3. Process and store results in the database
+
+## Usage
+
+Jobs are run via the job orchestrator:
+
+```ts
+import { runJob } from "../../adm/jobs/mod.ts";
+await runJob("solana/metadata-job");
+await runJob("solana/signature-backfill");
+```

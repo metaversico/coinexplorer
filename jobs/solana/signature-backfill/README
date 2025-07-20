@@ -1,0 +1,43 @@
+jobs/solana/signature-backfill schedules RPC calls to backfill transaction signatures for Solana markets.
+
+- Loads Solana markets from markets.yml configuration
+- Finds oldest stored signature for each market to determine backfill starting point
+- Schedules getSignaturesForAddress RPC calls to fill historical gaps
+- Supports both initial collection and incremental backfill from existing data
+- Uses higher priority RPC calls for backfill operations
+
+## Usage
+
+Run to backfill signatures for all Solana markets:
+
+```ts
+import { runJob } from "../../../adm/jobs/mod.ts";
+const result = await runJob("solana/signature-backfill", ["run-123"]);
+```
+
+## Configuration
+
+Environment variables:
+- `SOLANA_RPC_URL` - Solana RPC endpoint (default: https://api.mainnet-beta.solana.com)
+- `MAX_SIGNATURES_PER_CALL` - Maximum signatures to request per call (default: 1000)
+
+## Parameters
+
+- `args[0]` - Job run ID for tracking RPC calls
+
+## Job Flow
+
+1. Loads Solana markets from markets.yml
+2. For each market:
+   - Queries database for oldest stored signature
+   - If found: schedules call starting from that signature (backfill)
+   - If none: schedules initial signature collection call
+3. Creates RPC calls with priority=1 (higher than normal)
+4. Returns summary of scheduled calls per market
+
+## Output
+
+Returns object with:
+- `message` - Summary of operation
+- `markets` - Array of processed market names
+- `scheduledCalls` - Array of RPC call IDs created

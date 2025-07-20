@@ -1,0 +1,33 @@
+jobs/solana/metadata-job schedules RPC calls to collect Solana token metadata for all configured coins.
+
+- Schedules getAccountInfo RPC calls for all Solana coins in the system
+- Integrates with rpc-executor for actual RPC call execution
+- Provides job run tracking through run ID parameter
+- Returns summary of scheduled calls for monitoring
+
+## Usage
+
+Run to schedule metadata collection for all Solana tokens:
+
+```ts
+import { runJob } from "../../adm/jobs/mod.ts";
+const result = await runJob("solana/metadata-job", ["run-123"]);
+```
+
+## Parameters
+
+- `args[0]` - Job run ID for tracking and associating RPC calls
+
+## Job Flow
+
+1. Calls scheduleSolanaMetadataCalls() to create RPC call records
+2. RPC calls are queued with status 'pending' in the database
+3. Returns count of scheduled calls and their IDs
+4. rpc-executor job will later process these calls
+5. rpc-processor job will extract metadata from results
+
+## Output
+
+Returns object with:
+- `message` - Summary of scheduled calls
+- `callIds` - Array of created RPC call IDs for tracking
