@@ -9,8 +9,10 @@ providers:
     
   - name: helius-project1
     chain: solana-mainnet
-    url: https://mainnet.helius-rpc.com/?api-key=YOUR_API_KEY_HERE
+    url: https://mainnet.helius-rpc.com/?api-key={{helius_api_key}}
     interval: 3000 # 3 seconds
+    require:
+      helius_api_key: HELIUS_API_KEY
     
   - name: solana-devnet
     chain: solana-devnet
@@ -20,5 +22,5 @@ providers:
 # Default settings
 defaults:
   max_calls_per_provider: 3
-  max_executions_per_interval: 3
+  max_executions_per_interval: 1
   target_chain: solana-mainnet

@@ -5,6 +5,7 @@ export interface RpcProvider {
   chain: string;
   url: string;
   interval: number;
+  require?: Record<string, string>; // Maps template variables to environment variable names
 }
 
 export interface RpcProviderConfig {
@@ -43,9 +44,13 @@ export class RpcProviderConfigLoader {
       // Validate configuration
       this.validateConfig(this.config);
       
+      // Process template variables and filter out providers with missing env vars
+      this.processTemplateVariables(this.config);
+      
       return this.config;
     } catch (error) {
-      throw new Error(`Failed to load RPC provider configuration: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to load RPC provider configuration: ${errorMessage}`);
     }
   }
 
@@ -71,6 +76,55 @@ export class RpcProviderConfigLoader {
 
   getMaxExecutionsPerInterval(): number {
     return this.getConfig().defaults.max_executions_per_interval;
+  }
+
+  private processTemplateVariables(config: RpcProviderConfig): void {
+    // Process each provider individually
+    config.providers = config.providers.filter(provider => {
+      // Skip providers without requirements
+      if (!provider.require) {
+        return true;
+      }
+
+      let processedUrl = provider.url;
+      let hasAllRequiredVars = true;
+      const missingVars: string[] = [];
+
+      // Get environment variable values for this provider's requirements
+      const envVars: Record<string, string> = {};
+      for (const [templateVar, envVarName] of Object.entries(provider.require)) {
+        const envValue = Deno.env.get(envVarName);
+        if (envValue) {
+          envVars[templateVar] = envValue;
+        } else {
+          missingVars.push(`${templateVar} (${envVarName})`);
+          hasAllRequiredVars = false;
+        }
+      }
+
+      // Log missing environment variables for this provider
+      if (missingVars.length > 0) {
+        console.warn(`Skipping provider '${provider.name}' due to missing environment variables: ${missingVars.join(', ')}`);
+        return false;
+      }
+
+      // Replace template variables in URL
+      for (const [templateVar, envValue] of Object.entries(envVars)) {
+        const templatePattern = `{{${templateVar}}}`;
+        processedUrl = processedUrl.replace(new RegExp(`\\{\\{${templateVar}\\}\\}`, 'g'), envValue);
+      }
+
+      // Check if there are still unresolved template variables
+      const unresolvedTemplates = processedUrl.match(/\{\{[^}]+\}\}/g);
+      if (unresolvedTemplates) {
+        console.warn(`Skipping provider '${provider.name}' due to unresolved template variables: ${unresolvedTemplates.join(', ')}`);
+        return false;
+      }
+
+      // Update the provider URL with resolved template variables
+      provider.url = processedUrl;
+      return true;
+    });
   }
 
   private validateConfig(config: RpcProviderConfig): void {
