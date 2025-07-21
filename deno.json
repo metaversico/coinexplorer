@@ -2,6 +2,8 @@
   "tasks": {
     "dev": "deno run --watch main.ts",
     "dev:db": "docker-compose down -v && docker-compose up -d",
+    "dev:api": "deno run --allow-all --watch api/main.ts",
+    "dev:www": "deno run --allow-all --watch api/main.ts & cd www && npm run dev",
     "adm:db": "deno run --allow-all adm/db/main.ts",
     "adm:init": "deno run --allow-all adm/init/main.ts",
     "adm:run": "deno run --allow-all adm/run/main.ts",

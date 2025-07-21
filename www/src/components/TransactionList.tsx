@@ -1,0 +1,126 @@
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { fetchTransactions } from '@/lib/api';
+import { Transaction } from '@/types';
+
+export function TransactionList() {
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
+  const navigate = useNavigate();
+
+  const limit = 20;
+
+  useEffect(() => {
+    loadTransactions();
+  }, [page]);
+
+  const loadTransactions = async () => {
+    try {
+      setLoading(true);
+      const data = await fetchTransactions(limit, page * limit);
+      setTransactions(data);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load transactions');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleString();
+  };
+
+  const formatMethod = (method: string) => {
+    return method.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-lg">Loading transactions...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-red-500">Error: {error}</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-semibold">Recent Transactions</h2>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setPage(Math.max(0, page - 1))}
+            disabled={page === 0}
+          >
+            Previous
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setPage(page + 1)}
+            disabled={transactions.length < limit}
+          >
+            Next
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid gap-4">
+        {transactions.map((transaction) => (
+          <Card
+            key={transaction.id}
+            className="cursor-pointer hover:shadow-md transition-shadow"
+            onClick={() => navigate(`/transaction/${transaction.id}`)}
+          >
+            <CardHeader>
+              <CardTitle className="text-base">
+                {formatMethod(transaction.method)}
+              </CardTitle>
+              <CardDescription>
+                ID: {transaction.id.substring(0, 8)}...
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Created:</span>
+                  <span>{formatDate(transaction.created_at)}</span>
+                </div>
+                {transaction.completed_at && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Completed:</span>
+                    <span>{formatDate(transaction.completed_at)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Status:</span>
+                  <span className={transaction.error ? 'text-red-500' : 'text-green-500'}>
+                    {transaction.error ? 'Error' : 'Success'}
+                  </span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {transactions.length === 0 && (
+        <div className="text-center py-12">
+          <p className="text-muted-foreground">No transactions found</p>
+        </div>
+      )}
+    </div>
+  );
+}
