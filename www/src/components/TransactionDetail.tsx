@@ -217,13 +217,25 @@ export function TransactionDetail() {
       <Card>
         <CardHeader>
           <CardTitle>Transaction Details</CardTitle>
-          <CardDescription>ID: {transaction.id}</CardDescription>
+          <CardDescription>
+            {transaction.txn_signature ? (
+              <>Transaction Signature: {transaction.txn_signature}</>
+            ) : (
+              <>ID: {transaction.id}</>
+            )}
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
             <div>
               <h3 className="font-medium mb-2">Basic Information</h3>
               <div className="space-y-2 text-sm">
+                {transaction.txn_signature && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Transaction Signature:</span>
+                    <span className="font-mono text-xs break-all">{transaction.txn_signature}</span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">RPC Call ID:</span>
                   <span className="font-mono">{transaction.rpc_call_id}</span>

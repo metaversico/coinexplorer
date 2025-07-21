@@ -1,5 +1,5 @@
 import { Application, Router } from "@oak/oak";
-import { getTransactions, getTransaction, ApiTransactionResult } from "../db/rpc/mod.ts";
+import { getTransactions, getTransaction, getTransactionBySignature, ApiTransactionResult } from "../db/rpc/mod.ts";
 
 import "jsr:@std/dotenv/load"
 const router = new Router();
@@ -66,7 +66,17 @@ router.get("/api/transactions", async (ctx) => {
 router.get("/api/transactions/:id", async (ctx) => {
   try {
     const id = ctx.params.id;
-    const transaction = await getTransaction(id);
+    let transaction: ApiTransactionResult | null = null;
+    
+    // First try to get by signature (new way)
+    if (id.length > 50) { // Transaction signatures are typically 87-88 characters
+      transaction = await getTransactionBySignature(id);
+    }
+    
+    // If not found or not a signature, try by result ID (old way)
+    if (!transaction) {
+      transaction = await getTransaction(id);
+    }
     
     if (!transaction) {
       ctx.response.status = 404;

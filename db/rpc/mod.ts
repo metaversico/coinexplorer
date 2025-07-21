@@ -270,6 +270,7 @@ export interface ApiTransactionResult {
   created_at: string;
   completed_at: string | null;
   source_url?: string;
+  txn_signature?: string;
 }
 
 export async function getTransactions(limit = 50, offset = 0, method?: string, sort = 'desc'): Promise<ApiTransactionResult[]> {
@@ -285,7 +286,8 @@ export async function getTransactions(limit = 50, offset = 0, method?: string, s
         rcr.result,
         rcr.error,
         rcr.created_at,
-        rcr.completed_at
+        rcr.completed_at,
+        CASE WHEN rc.method = 'getTransaction' THEN rc.params::jsonb->>0 ELSE NULL END as txn_signature
       FROM rpc_call_results rcr
       JOIN rpc_calls rc ON rcr.rpc_call_id = rc.id
       WHERE rcr.result IS NOT NULL
@@ -331,11 +333,50 @@ export async function getTransaction(id: string): Promise<ApiTransactionResult |
         rcr.error,
         rcr.source_url,
         rcr.created_at,
-        rcr.completed_at
+        rcr.completed_at,
+        CASE WHEN rc.method = 'getTransaction' THEN rc.params::jsonb->>0 ELSE NULL END as txn_signature
       FROM rpc_call_results rcr
       JOIN rpc_calls rc ON rcr.rpc_call_id = rc.id
       WHERE rcr.id = $1
     `, [id]);
+    
+    if (result.rows.length === 0) return null;
+    
+    const row = result.rows[0];
+    return {
+      ...row,
+      params: typeof row.params === 'string' ? JSON.parse(row.params) : row.params,
+      result: typeof row.result === 'string' ? JSON.parse(row.result) : row.result,
+    };
+  } finally {
+    client.release();
+  }
+}
+
+export async function getTransactionBySignature(signature: string): Promise<ApiTransactionResult | null> {
+  const pool = getPgPool();
+  const client = await pool.connect();
+  try {
+    const result = await client.queryObject<ApiTransactionResult>(`
+      SELECT 
+        rcr.id,
+        rcr.rpc_call_id,
+        rc.method,
+        rc.params,
+        rcr.result,
+        rcr.error,
+        rcr.source_url,
+        rcr.created_at,
+        rcr.completed_at,
+        rc.params::jsonb->>0 as txn_signature
+      FROM rpc_call_results rcr
+      JOIN rpc_calls rc ON rcr.rpc_call_id = rc.id
+      WHERE rc.method = 'getTransaction' 
+        AND rc.params::jsonb->>0 = $1
+        AND rcr.result IS NOT NULL
+      ORDER BY rcr.created_at DESC
+      LIMIT 1
+    `, [signature]);
     
     if (result.rows.length === 0) return null;
     

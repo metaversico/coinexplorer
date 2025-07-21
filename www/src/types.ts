@@ -8,4 +8,5 @@ export interface Transaction {
   source_url?: string;
   created_at: string;
   completed_at: string | null;
+  txn_signature?: string;
 }

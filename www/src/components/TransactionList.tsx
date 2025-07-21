@@ -56,7 +56,9 @@ export function TransactionList() {
     if ((event.target as HTMLElement).closest('.compare-button')) {
       return;
     }
-    navigate(`/transaction/${transaction.id}`);
+    // Use transaction signature for getTransaction calls, otherwise fall back to result ID
+    const identifier = transaction.txn_signature || transaction.id;
+    navigate(`/transaction/${identifier}`);
   };
 
   const handleCompareClick = (transaction: Transaction, event: MouseEvent<HTMLButtonElement>) => {
@@ -129,7 +131,13 @@ export function TransactionList() {
                     {formatMethod(transaction.method)}
                   </CardTitle>
                   <CardDescription>
-                    ID: {transaction.id.substring(0, 8)}...
+                    {transaction.txn_signature ? (
+                      <span title={`Signature: ${transaction.txn_signature}`}>
+                        Signature: {transaction.txn_signature.substring(0, 12)}...
+                      </span>
+                    ) : (
+                      <>ID: {transaction.id.substring(0, 8)}...</>
+                    )}
                   </CardDescription>
                 </div>
                 <Button
