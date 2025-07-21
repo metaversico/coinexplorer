@@ -18,6 +18,7 @@
     "@coinexplorer/jobs": "./jobs/mod.ts",
     "@prom-client": "npm:prom-client",
     "@postgres": "https://deno.land/x/postgres@v0.17.0/mod.ts",
-    "@std/yaml": "https://deno.land/std@0.208.0/yaml/mod.ts"
+    "@std/yaml": "https://deno.land/std@0.208.0/yaml/mod.ts",
+    "@oak/oak": "jsr:@oak/oak"
   }
 }

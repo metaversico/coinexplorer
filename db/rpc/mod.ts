@@ -258,4 +258,94 @@ export async function getSignaturesWithoutTransactionData(limit: number = 100): 
   } finally {
     client.release();
   }
+}
+
+export interface ApiTransactionResult {
+  id: string;
+  rpc_call_id: string;
+  method: string;
+  params: any;
+  result: any;
+  error: string | null;
+  created_at: string;
+  completed_at: string | null;
+  source_url?: string;
+}
+
+export async function getTransactions(limit = 50, offset = 0, method?: string, sort = 'desc'): Promise<ApiTransactionResult[]> {
+  const pool = getPgPool();
+  const client = await pool.connect();
+  try {
+    let query = `
+      SELECT 
+        rcr.id,
+        rcr.rpc_call_id,
+        rc.method,
+        rc.params,
+        rcr.result,
+        rcr.error,
+        rcr.created_at,
+        rcr.completed_at
+      FROM rpc_call_results rcr
+      JOIN rpc_calls rc ON rcr.rpc_call_id = rc.id
+      WHERE rcr.result IS NOT NULL
+    `;
+    
+    const queryParams: any[] = [];
+    let paramIndex = 1;
+    
+    if (method) {
+      query += ` AND rc.method = $${paramIndex}`;
+      queryParams.push(method);
+      paramIndex++;
+    }
+    
+    const sortDirection = sort.toLowerCase() === 'asc' ? 'ASC' : 'DESC';
+    query += ` ORDER BY rcr.created_at ${sortDirection}`;
+    
+    query += ` LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+    queryParams.push(limit, offset);
+    
+    const result = await client.queryObject<ApiTransactionResult>(query, queryParams);
+    return result.rows.map(row => ({
+      ...row,
+      params: typeof row.params === 'string' ? JSON.parse(row.params) : row.params,
+      result: typeof row.result === 'string' ? JSON.parse(row.result) : row.result,
+    }));
+  } finally {
+    client.release();
+  }
+}
+
+export async function getTransaction(id: string): Promise<ApiTransactionResult | null> {
+  const pool = getPgPool();
+  const client = await pool.connect();
+  try {
+    const result = await client.queryObject<ApiTransactionResult>(`
+      SELECT 
+        rcr.id,
+        rcr.rpc_call_id,
+        rc.method,
+        rc.params,
+        rcr.result,
+        rcr.error,
+        rcr.source_url,
+        rcr.created_at,
+        rcr.completed_at
+      FROM rpc_call_results rcr
+      JOIN rpc_calls rc ON rcr.rpc_call_id = rc.id
+      WHERE rcr.id = $1
+    `, [id]);
+    
+    if (result.rows.length === 0) return null;
+    
+    const row = result.rows[0];
+    return {
+      ...row,
+      params: typeof row.params === 'string' ? JSON.parse(row.params) : row.params,
+      result: typeof row.result === 'string' ? JSON.parse(row.result) : row.result,
+    };
+  } finally {
+    client.release();
+  }
 } 
