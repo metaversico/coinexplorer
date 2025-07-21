@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { Menu, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Menu, ChevronLeft, ChevronRight, BarChart3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useComparison } from '../context/ComparisonContext';
+import { ComparisonPane } from './ComparisonPane';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -8,6 +10,7 @@ interface LayoutProps {
 
 export function Layout({ children }: LayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const { selectedTransactions, isPaneOpen, togglePane } = useComparison();
 
   return (
     <div className="min-h-screen bg-background">
@@ -22,11 +25,22 @@ export function Layout({ children }: LayoutProps) {
           >
             <Menu className="h-4 w-4" />
           </Button>
-          <nav className="flex items-center space-x-6">
-            <span className="text-sm font-medium text-muted-foreground">Coinexplorer</span>
-            <span className="text-sm text-muted-foreground">|</span>
-            <span className="text-sm text-muted-foreground">Explorer</span>
-          </nav>
+          <div className="flex items-center justify-between w-full">
+            <nav className="flex items-center space-x-6">
+              <span className="text-sm font-medium text-muted-foreground">Coinexplorer</span>
+              <span className="text-sm text-muted-foreground">|</span>
+              <span className="text-sm text-muted-foreground">Explorer</span>
+            </nav>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={togglePane}
+              className={`flex items-center gap-2 ${isPaneOpen ? 'bg-blue-100 text-blue-700' : ''}`}
+            >
+              <BarChart3 className="h-4 w-4" />
+              Compare ({selectedTransactions.length})
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -66,7 +80,7 @@ export function Layout({ children }: LayoutProps) {
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1">
+        <main className={`flex-1 transition-all duration-300 ${isPaneOpen ? 'mr-[50%]' : ''}`}>
           {/* Masthead */}
           <div className="border-b bg-white px-6 py-4">
             <h1 className="text-2xl font-bold">Transaction Explorer</h1>
@@ -78,6 +92,9 @@ export function Layout({ children }: LayoutProps) {
           {/* Content */}
           <div className="p-6">{children}</div>
         </main>
+
+        {/* Comparison Pane */}
+        <ComparisonPane />
       </div>
     </div>
   );

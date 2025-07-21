@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Plus, Check } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { fetchTransactions } from '@/lib/api';
 import { Transaction } from '@/types';
+import { useComparison } from '../context/ComparisonContext';
 
 export function TransactionList() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -11,6 +13,7 @@ export function TransactionList() {
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(0);
   const navigate = useNavigate();
+  const { addTransaction, isSelected } = useComparison();
 
   const limit = 20;
 
@@ -37,6 +40,18 @@ export function TransactionList() {
 
   const formatMethod = (method: string) => {
     return method.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+  };
+
+  const handleCardClick = (transaction: Transaction, event: React.MouseEvent) => {
+    if ((event.target as HTMLElement).closest('.compare-button')) {
+      return;
+    }
+    navigate(`/transaction/${transaction.id}`);
+  };
+
+  const handleCompareClick = (transaction: Transaction, event: React.MouseEvent) => {
+    event.stopPropagation();
+    addTransaction(transaction);
   };
 
   if (loading) {
@@ -81,16 +96,34 @@ export function TransactionList() {
         {transactions.map((transaction) => (
           <Card
             key={transaction.id}
-            className="cursor-pointer hover:shadow-md transition-shadow"
-            onClick={() => navigate(`/transaction/${transaction.id}`)}
+            className={`cursor-pointer hover:shadow-md transition-all ${
+              isSelected(transaction.id) ? 'ring-2 ring-blue-500 bg-blue-50' : ''
+            }`}
+            onClick={(event) => handleCardClick(transaction, event)}
           >
             <CardHeader>
-              <CardTitle className="text-base">
-                {formatMethod(transaction.method)}
-              </CardTitle>
-              <CardDescription>
-                ID: {transaction.id.substring(0, 8)}...
-              </CardDescription>
+              <div className="flex justify-between items-start">
+                <div>
+                  <CardTitle className="text-base">
+                    {formatMethod(transaction.method)}
+                  </CardTitle>
+                  <CardDescription>
+                    ID: {transaction.id.substring(0, 8)}...
+                  </CardDescription>
+                </div>
+                <Button
+                  variant={isSelected(transaction.id) ? "default" : "outline"}
+                  size="sm"
+                  className="compare-button shrink-0"
+                  onClick={(event) => handleCompareClick(transaction, event)}
+                >
+                  {isSelected(transaction.id) ? (
+                    <Check className="h-3 w-3" />
+                  ) : (
+                    <Plus className="h-3 w-3" />
+                  )}
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="space-y-2 text-sm">
