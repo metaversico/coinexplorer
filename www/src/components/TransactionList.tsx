@@ -1,17 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, MouseEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Check } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { fetchTransactions } from '@/lib/api';
+import { fetchTransactions, TransactionFilters } from '@/lib/api';
 import { Transaction } from '@/types';
 import { useComparison } from '../context/ComparisonContext';
+import { ApiFilterBar } from './ApiFilterBar';
 
 export function TransactionList() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(0);
+  const [filters, setFilters] = useState<TransactionFilters>({
+    method: null,
+    sortOrder: 'latest'
+  });
   const navigate = useNavigate();
   const { addTransaction, isSelected } = useComparison();
 
@@ -19,12 +24,12 @@ export function TransactionList() {
 
   useEffect(() => {
     loadTransactions();
-  }, [page]);
+  }, [page, filters]);
 
   const loadTransactions = async () => {
     try {
       setLoading(true);
-      const data = await fetchTransactions(limit, page * limit);
+      const data = await fetchTransactions(limit, page * limit, filters);
       setTransactions(data);
       setError(null);
     } catch (err) {
@@ -32,6 +37,11 @@ export function TransactionList() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleFiltersChange = (newFilters: TransactionFilters) => {
+    setFilters(newFilters);
+    setPage(0); // Reset to first page when filters change
   };
 
   const formatDate = (dateString: string) => {
@@ -42,14 +52,14 @@ export function TransactionList() {
     return method.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
   };
 
-  const handleCardClick = (transaction: Transaction, event: React.MouseEvent) => {
+  const handleCardClick = (transaction: Transaction, event: MouseEvent<HTMLDivElement>) => {
     if ((event.target as HTMLElement).closest('.compare-button')) {
       return;
     }
     navigate(`/transaction/${transaction.id}`);
   };
 
-  const handleCompareClick = (transaction: Transaction, event: React.MouseEvent) => {
+  const handleCompareClick = (transaction: Transaction, event: MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
     addTransaction(transaction);
   };
@@ -72,20 +82,31 @@ export function TransactionList() {
 
   return (
     <div className="space-y-6">
+      <ApiFilterBar 
+        filters={filters} 
+        onFiltersChange={handleFiltersChange}
+      />
+      
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold">Recent Transactions</h2>
+        <div>
+          <h2 className="text-xl font-semibold">Recent Transactions</h2>
+          <p className="text-sm text-gray-500 mt-1">
+            {filters.method ? `Filtered by ${filters.method} method` : 'All methods'} • 
+            Sorted by {filters.sortOrder === 'latest' ? 'latest first' : 'earliest first'}
+          </p>
+        </div>
         <div className="flex gap-2">
           <Button
             variant="outline"
             onClick={() => setPage(Math.max(0, page - 1))}
-            disabled={page === 0}
+            disabled={page === 0 || loading}
           >
             Previous
           </Button>
           <Button
             variant="outline"
             onClick={() => setPage(page + 1)}
-            disabled={transactions.length < limit}
+            disabled={transactions.length < limit || loading}
           >
             Next
           </Button>
@@ -151,7 +172,9 @@ export function TransactionList() {
 
       {transactions.length === 0 && (
         <div className="text-center py-12">
-          <p className="text-muted-foreground">No transactions found</p>
+          <p className="text-muted-foreground">
+            {filters.method ? `No ${filters.method} transactions found` : 'No transactions found'}
+          </p>
         </div>
       )}
     </div>

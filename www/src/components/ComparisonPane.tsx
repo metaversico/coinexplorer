@@ -1,9 +1,11 @@
 import React from 'react';
 import { X, Minimize2 } from 'lucide-react';
 import { useComparison } from '../context/ComparisonContext';
+import { useLocalFilter, LocalFilterProvider } from '../context/LocalFilterContext';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Transaction } from '../types';
+import { ComparisonFilter } from './ComparisonFilter';
 
 const TransactionCard: React.FC<{ transaction: Transaction; onRemove: () => void }> = ({ 
   transaction, 
@@ -97,7 +99,7 @@ const TransactionCard: React.FC<{ transaction: Transaction; onRemove: () => void
   );
 };
 
-export const ComparisonPane: React.FC = () => {
+const ComparisonPaneContent: React.FC = () => {
   const { 
     selectedTransactions, 
     isPaneOpen, 
@@ -105,17 +107,27 @@ export const ComparisonPane: React.FC = () => {
     clearSelection, 
     closePane 
   } = useComparison();
+  const { filterTransactions } = useLocalFilter();
 
   if (!isPaneOpen) {
     return null;
   }
 
+  const filteredSelectedTransactions = filterTransactions(selectedTransactions);
+
   return (
     <div className="fixed right-0 top-0 h-full w-1/2 bg-white border-l border-gray-200 shadow-lg z-50 flex flex-col">
       <div className="flex items-center justify-between p-4 border-b border-gray-200">
-        <h2 className="text-lg font-semibold">
-          Transaction Comparison ({selectedTransactions.length})
-        </h2>
+        <div>
+          <h2 className="text-lg font-semibold">
+            Transaction Comparison ({selectedTransactions.length})
+          </h2>
+          {selectedTransactions.length !== filteredSelectedTransactions.length && (
+            <p className="text-xs text-gray-500 mt-1">
+              {filteredSelectedTransactions.length} shown after filtering
+            </p>
+          )}
+        </div>
         <div className="flex gap-2">
           <Button
             variant="ghost"
@@ -135,6 +147,8 @@ export const ComparisonPane: React.FC = () => {
         </div>
       </div>
 
+      <ComparisonFilter />
+
       {selectedTransactions.length === 0 ? (
         <div className="flex-1 flex items-center justify-center text-gray-500">
           <div className="text-center">
@@ -142,16 +156,23 @@ export const ComparisonPane: React.FC = () => {
             <div className="text-sm">Click on transactions in the list to compare them</div>
           </div>
         </div>
+      ) : filteredSelectedTransactions.length === 0 ? (
+        <div className="flex-1 flex items-center justify-center text-gray-500">
+          <div className="text-center">
+            <div className="text-lg mb-2">No transactions match filters</div>
+            <div className="text-sm">Adjust your filters to see selected transactions</div>
+          </div>
+        </div>
       ) : (
         <div className="flex-1 overflow-auto p-4">
           <div className={`grid gap-4 h-full ${
-            selectedTransactions.length === 1 
+            filteredSelectedTransactions.length === 1 
               ? 'grid-cols-1' 
-              : selectedTransactions.length === 2 
+              : filteredSelectedTransactions.length === 2 
                 ? 'grid-cols-1 xl:grid-cols-2' 
                 : 'grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3'
           }`}>
-            {selectedTransactions.map((transaction) => (
+            {filteredSelectedTransactions.map((transaction) => (
               <TransactionCard
                 key={transaction.id}
                 transaction={transaction}
@@ -162,5 +183,13 @@ export const ComparisonPane: React.FC = () => {
         </div>
       )}
     </div>
+  );
+};
+
+export const ComparisonPane: React.FC = () => {
+  return (
+    <LocalFilterProvider>
+      <ComparisonPaneContent />
+    </LocalFilterProvider>
   );
 };

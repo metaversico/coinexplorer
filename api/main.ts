@@ -30,10 +30,11 @@ async function connectDB() {
   return client;
 }
 
-async function getTransactions(limit = 50, offset = 0) {
+async function getTransactions(limit = 50, offset = 0, method?: string, sort = 'desc') {
   const client = await connectDB();
   try {
-    const result = await client.queryObject(`
+    // Build dynamic query
+    let query = `
       SELECT 
         rcr.id,
         rcr.rpc_call_id,
@@ -46,9 +47,29 @@ async function getTransactions(limit = 50, offset = 0) {
       FROM rpc_call_results rcr
       JOIN rpc_calls rc ON rcr.rpc_call_id = rc.id
       WHERE rcr.result IS NOT NULL
-      ORDER BY rcr.created_at DESC
-      LIMIT $1 OFFSET $2
-    `, [limit, offset]);
+    `;
+    
+    const queryParams: any[] = [];
+    let paramIndex = 1;
+    
+    // Add method filter if provided
+    if (method) {
+      query += ` AND rc.method = $${paramIndex}`;
+      queryParams.push(method);
+      paramIndex++;
+    }
+    
+    // Add sorting
+    const sortDirection = sort.toLowerCase() === 'asc' ? 'ASC' : 'DESC';
+    query += ` ORDER BY rcr.created_at ${sortDirection}`;
+    
+    // Add pagination
+    query += ` LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+    queryParams.push(limit, offset);
+    
+    console.log(query, queryParams);
+    const result = await client.queryObject(query, queryParams);
+    console.log(result.rows);
     
     return result.rows;
   } finally {
@@ -91,10 +112,40 @@ async function handler(req: Request): Promise<Response> {
 
   try {
     if (url.pathname === "/api/transactions" && req.method === "GET") {
-      const limit = parseInt(url.searchParams.get("limit") || "50");
-      const offset = parseInt(url.searchParams.get("offset") || "0");
+      // Parse and validate parameters
+      const limitParam = url.searchParams.get("limit");
+      const offsetParam = url.searchParams.get("offset");
+      const method = url.searchParams.get("method") || undefined;
+      const sort = url.searchParams.get("sort") || "desc";
       
-      const transactions = await getTransactions(limit, offset);
+      const limit = Math.min(Math.max(parseInt(limitParam || "50"), 1), 100); // Clamp between 1-100
+      const offset = Math.max(parseInt(offsetParam || "0"), 0); // Ensure non-negative
+      
+      // Validate method if provided (security check)
+      const allowedMethods = ['getSignaturesForAddress', 'getTransaction'];
+      if (method && !allowedMethods.includes(method)) {
+        return new Response(JSON.stringify({ 
+          error: "Invalid method filter. Allowed methods: " + allowedMethods.join(', ') 
+        }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      
+      // Validate sort parameter
+      const sortDirection = sort.toLowerCase();
+      if (sortDirection !== 'asc' && sortDirection !== 'desc') {
+        return new Response(JSON.stringify({ 
+          error: "Invalid sort parameter. Must be 'asc' or 'desc'" 
+        }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      
+      console.log(`API Request: limit=${limit}, offset=${offset}, method=${method}, sort=${sortDirection}`);
+      
+      const transactions = await getTransactions(limit, offset, method, sortDirection);
       
       return new Response(JSON.stringify(transactions), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
