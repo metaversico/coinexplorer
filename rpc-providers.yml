@@ -24,3 +24,4 @@ defaults:
   max_calls_per_provider: 3
   max_calls_per_provider_interval: 1
   target_chain: solana-mainnet
+  high_priority_provider: solana-mainnet-beta  # Provider to use for high-priority operations

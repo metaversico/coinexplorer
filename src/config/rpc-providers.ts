@@ -14,6 +14,7 @@ export interface RpcProviderConfig {
     max_calls_per_provider: number;
     max_calls_per_provider_interval: number;
     target_chain: string;
+    high_priority_provider?: string;
   };
 }
 
@@ -76,6 +77,14 @@ export class RpcProviderConfigLoader {
 
   getMaxExecutionsPerInterval(): number {
     return this.getConfig().defaults.max_executions_per_interval;
+  }
+
+  getHighPriorityProvider(): RpcProvider | null {
+    const config = this.getConfig();
+    const providerName = config.defaults.high_priority_provider;
+    if (!providerName) return null;
+    
+    return config.providers.find(p => p.name === providerName) || null;
   }
 
   private processTemplateVariables(config: RpcProviderConfig): void {

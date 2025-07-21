@@ -11,7 +11,8 @@
     "adm:main": "deno run --allow-all adm/main.ts",
     "adm:job:run": "deno run --allow-all adm/jobs/main.ts",
     "dev:db:tools": "cd db/tools && docker-compose down -v && docker-compose up -d",
-    "dev:network": "docker network create coinexplorer-network"
+    "dev:network": "docker network create coinexplorer-network",
+    "rpc:txn": "deno run --allow-env --allow-net --allow-read scripts/rpc-txn.ts"
   },
   "imports": {
     "@std/assert": "jsr:@std/assert@1",
