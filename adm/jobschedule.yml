@@ -3,10 +3,15 @@
 #  schedule: "* * * * *"
 #  job: test-job
 
-# Process RPC calls once every minute
-- name: rpc-executor
-  schedule: "* * * * *"
-  job: rpc-executor
+# Process RPC calls once every minute (legacy single-provider)
+#- name: rpc-executor
+#  schedule: "* * * * *"
+#  job: rpc-executor
+
+# Process RPC calls with multiple providers every 2 minutes
+- name: rpc-executor-multi
+  schedule: "*/2 * * * *"
+  job: rpc-executor-multi
 
 # Process Solana metadata every day at midnight
 - name: solana-metadata

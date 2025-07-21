@@ -67,6 +67,28 @@ export async function getPendingRpcCalls(limit: number = 10): Promise<RpcCall[]>
   }
 }
 
+export async function getPendingRpcCallsForChain(chain: string, limit: number = 10): Promise<RpcCall[]> {
+  const pool = getPgPool();
+  const client = await pool.connect();
+  try {
+    const result = await client.queryObject<RpcCall>(
+      `SELECT * FROM rpc_calls 
+       WHERE status = 'pending' 
+       AND scheduled_at <= now()
+       AND (rate_limit_key LIKE $1 OR rate_limit_key IS NULL)
+       ORDER BY priority DESC, created_at ASC
+       LIMIT $2`,
+      [`${chain}%`, limit]
+    );
+    return result.rows.map(row => ({
+      ...row,
+      params: typeof row.params === 'string' ? JSON.parse(row.params) : row.params,
+    }));
+  } finally {
+    client.release();
+  }
+}
+
 export async function updateRpcCall(id: string, fields: Partial<RpcCall>): Promise<void> {
   const pool = getPgPool();
   const client = await pool.connect();
