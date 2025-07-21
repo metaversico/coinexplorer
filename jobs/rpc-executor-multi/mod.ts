@@ -12,17 +12,17 @@ export default async function RunJob() {
   try {
     config = await configLoader.loadConfig();
   } catch (error) {
-    console.error("Failed to load RPC provider configuration:", error.message);
+    console.error("Failed to load RPC provider configuration:", error instanceof Error ? error.message : String(error));
     return;
   }
   
   const targetChain = Deno.env.get("TARGET_CHAIN") || config.defaults.target_chain;
   const maxCallsPerProvider = parseInt(Deno.env.get("MAX_CALLS_PER_PROVIDER") || config.defaults.max_calls_per_provider.toString(), 10);
-  const maxExecutionsPerInterval = parseInt(Deno.env.get("MAX_EXECUTIONS_PER_INTERVAL") || config.defaults.max_executions_per_interval.toString(), 10);
+  const maxCallsPerProviderInterval = parseInt(Deno.env.get("MAX_CALLS_PER_PROVIDER_INTERVAL") || config.defaults.max_calls_per_provider_interval.toString(), 10);
   
   console.log(`Target chain: ${targetChain}`);
   console.log(`Max calls per provider: ${maxCallsPerProvider}`);
-  console.log(`Max executions per interval: ${maxExecutionsPerInterval}`);
+  console.log(`Max calls per provider interval: ${maxCallsPerProviderInterval}`);
   
   // Get providers for the target chain
   const providers = configLoader.getProvidersForChain(targetChain);
@@ -45,13 +45,8 @@ export default async function RunJob() {
   
   console.log(`Found ${allPendingCalls.length} pending RPC calls for chain ${targetChain}`);
   
-  // Initialize RPC client with default rate limiting
-  const rpcClient = new RpcClient(1000);
-  
-  // Set up rate limits for each provider
-  providers.forEach(provider => {
-    rpcClient.setRateLimit(provider.name, provider.interval);
-  });
+  // Initialize RPC client
+  const rpcClient = new RpcClient();
   
   // Initialize provider execution tracking
   const providerExecutions: ProviderExecution[] = providers.map(provider => ({
@@ -84,14 +79,14 @@ export default async function RunJob() {
         // Get pending calls that haven't been processed yet
         const availableCalls = allPendingCalls;
         
-        const calls = availableCalls.slice(0, maxCallsPerProvider);
+        const calls = availableCalls.slice(0, maxCallsPerProviderInterval);
         
         if (calls.length === 0) {
           console.log(`No more pending calls for provider ${provider.name}`);
           return;
         }
         
-        console.log(`Executing ${calls.length} calls for provider ${provider.name} (execution ${providerExecution.executionCount + 1}/${maxExecutionsPerInterval})`);
+        console.log(`Executing ${calls.length} calls for provider ${provider.name} (execution ${providerExecution.executionCount + 1}/${maxCallsPerProvider})`);
         
         // Process each call
         for (const call of calls) {
@@ -99,7 +94,7 @@ export default async function RunJob() {
             console.log(`Executing RPC call ${call.id} to ${provider.url} (${call.method}) via ${provider.name}`);
             
             // Make the RPC call
-            const response = await rpcClient.makeRpcCall(call, provider.url, provider.name);
+            const response = await rpcClient.makeRpcCall(call, provider.url);
             
             if (response.success) {
               // Store successful result
@@ -135,8 +130,8 @@ export default async function RunJob() {
       providerExecution.executionCount++;
       
       // Check if this provider has completed all executions
-      if (providerExecution.executionCount >= maxExecutionsPerInterval) {
-        console.log(`Provider ${provider.name} completed ${maxExecutionsPerInterval} executions. Stopping.`);
+      if (providerExecution.executionCount >= maxCallsPerProvider) {
+        console.log(`Provider ${provider.name} completed ${maxCallsPerProvider} executions. Stopping.`);
         
         // Clear the interval
         if (providerExecution.intervalId !== undefined) {
@@ -157,9 +152,12 @@ export default async function RunJob() {
       
       // Execute immediately for the first time
       executeForProvider(providerExecution);
+
+      console.log('setting up interval for provider', provider.name, Date.now(), provider.interval);
       
       // Set up interval for subsequent executions
       providerExecution.intervalId = setInterval(() => {
+        console.log('executing for provider', provider.name, Date.now());
         executeForProvider(providerExecution);
       }, provider.interval);
     });

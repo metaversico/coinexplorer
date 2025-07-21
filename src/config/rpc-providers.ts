@@ -12,7 +12,7 @@ export interface RpcProviderConfig {
   providers: RpcProvider[];
   defaults: {
     max_calls_per_provider: number;
-    max_executions_per_interval: number;
+    max_calls_per_provider_interval: number;
     target_chain: string;
   };
 }

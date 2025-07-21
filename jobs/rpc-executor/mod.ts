@@ -2,15 +2,10 @@ import { RpcClient } from "../../src/rpc/client.ts";
 import { getPendingRpcCalls, createRpcCallResult } from "../../db/rpc/mod.ts";
 
 const MAX_RPC_CALLS_PER_RUN = parseInt(Deno.env.get("MAX_RPC_CALLS_PER_RUN") ?? "10", 10);
-const DEFAULT_RATE_LIMIT_MS = parseInt(Deno.env.get("DEFAULT_RATE_LIMIT_MS") ?? "1000", 10);
 const SOLANA_RPC_URL = Deno.env.get("SOLANA_RPC_URL") ?? "https://api.mainnet-beta.solana.com";
 
 export default async function RunJob() {
-  const rpcClient = new RpcClient(DEFAULT_RATE_LIMIT_MS);
-  
-  // Set up rate limits for common RPC endpoints
-  rpcClient.setRateLimit("solana-mainnet", 3000); // 1 call per second
-  rpcClient.setRateLimit("solana-devnet", 500);   // 2 calls per second
+  const rpcClient = new RpcClient();
   
   console.log(`Starting RPC executor job, max calls per run: ${MAX_RPC_CALLS_PER_RUN}`);
   
@@ -30,7 +25,7 @@ export default async function RunJob() {
       console.log(`Executing RPC call ${call.id} to ${SOLANA_RPC_URL} (${call.method})`);
       
       // Make the RPC call
-      const response = await rpcClient.makeRpcCall(call, SOLANA_RPC_URL, "solana-mainnet");
+      const response = await rpcClient.makeRpcCall(call, SOLANA_RPC_URL);
   
       if (response.success) {
         // Store result in separate table

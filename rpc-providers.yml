@@ -5,7 +5,7 @@ providers:
   - name: solana-mainnet-beta
     chain: solana-mainnet
     url: https://api.mainnet-beta.solana.com
-    interval: 5000 # 5 seconds
+    interval: 6000 # 6 seconds
     
   - name: helius-project1
     chain: solana-mainnet
@@ -22,5 +22,5 @@ providers:
 # Default settings
 defaults:
   max_calls_per_provider: 3
-  max_executions_per_interval: 1
+  max_calls_per_provider_interval: 1
   target_chain: solana-mainnet
