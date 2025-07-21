@@ -89,9 +89,6 @@ async function scheduleSignatureCall(
   const callId = await createRpcCall({
     method: "getSignaturesForAddress",
     params,
-    priority: 1, // Higher priority for backfill
-    rate_limit_key: "solana-mainnet",
-    job_id: jobId,
   });
   
   return callId;

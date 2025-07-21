@@ -30,9 +30,6 @@ export async function scheduleSolanaMetadataCalls(jobId?: string): Promise<strin
     const callId = await createRpcCall({
       method: "getAccountInfo",
       params: [coin.address, { encoding: "jsonParsed" }],
-      priority: 0,
-      rate_limit_key: "solana-mainnet",
-      job_id: jobId,
     });
     callIds.push(callId);
     console.log(`Scheduled RPC call for: ${coin.symbol} (${coin.address}) - ID: ${callId}`);

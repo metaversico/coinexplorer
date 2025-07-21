@@ -1,5 +1,5 @@
 import { RpcClient } from "../../src/rpc/client.ts";
-import { getPendingRpcCallsForChain, updateRpcCall, createRpcCallResult } from "../../db/rpc/mod.ts";
+import { getPendingRpcCallsForChain, createRpcCallResult } from "../../db/rpc/mod.ts";
 import { RpcProviderConfigLoader, type RpcProvider, type ProviderExecution } from "../../src/config/rpc-providers.ts";
 
 export default async function RunJob() {
@@ -80,10 +80,8 @@ export default async function RunJob() {
       
       try {
         // Get pending calls for this provider (up to the limit)
-        // Filter out calls that are already assigned to a provider
-        const availableCalls = allPendingCalls
-          .filter(call => !call.rate_limit_key || call.rate_limit_key.startsWith(targetChain))
-          .filter(call => call.status === 'pending');
+        // Get pending calls that haven't been processed yet
+        const availableCalls = allPendingCalls;
         
         const calls = availableCalls.slice(0, maxCallsPerProvider);
         
@@ -97,54 +95,19 @@ export default async function RunJob() {
         // Process each call
         for (const call of calls) {
           try {
-            // Mark as running with provider info
-            await updateRpcCall(call.id, {
-              status: 'running',
-              executed_at: new Date().toISOString(),
-              rate_limit_key: provider.name,
-            });
-            
             console.log(`Executing RPC call ${call.id} to ${provider.url} (${call.method}) via ${provider.name}`);
             
             // Make the RPC call
-            const response = await rpcClient.makeRpcCall({
-              ...call,
-              rate_limit_key: provider.name,
-            }, provider.url);
+            const response = await rpcClient.makeRpcCall(call, provider.url, provider.name);
             
             if (response.success) {
-              // Mark as completed
-              await updateRpcCall(call.id, {
-                status: 'completed',
-                completed_at: new Date().toISOString(),
-              });
-              
-              // Store result
+              // Store successful result
               await createRpcCallResult(call.id, provider.url, response.result);
-              
               console.log(`RPC call ${call.id} completed successfully via ${provider.name}`);
             } else {
-              // Handle failure
-              const shouldRetry = call.retry_count < call.max_retries;
-              const newStatus = shouldRetry ? 'pending' : 'failed';
-              
-              await updateRpcCall(call.id, {
-                status: newStatus,
-                completed_at: new Date().toISOString(),
-                retry_count: call.retry_count + 1,
-                rate_limit_key: shouldRetry ? undefined : provider.name, // Clear rate limit key if not retrying
-              });
-              
-              // Store error result if permanently failed
-              if (!shouldRetry) {
-                await createRpcCallResult(call.id, provider.url, undefined, response.error);
-              }
-              
-              if (shouldRetry) {
-                console.log(`RPC call ${call.id} failed via ${provider.name}, will retry (${call.retry_count + 1}/${call.max_retries}): ${response.error}`);
-              } else {
-                console.log(`RPC call ${call.id} failed permanently via ${provider.name}: ${response.error}`);
-              }
+              // Store error result
+              await createRpcCallResult(call.id, provider.url, undefined, response.error);
+              console.log(`RPC call ${call.id} failed via ${provider.name}: ${response.error}`);
             }
             
             // Remove processed call from the list
@@ -156,11 +119,6 @@ export default async function RunJob() {
           } catch (error) {
             // Handle unexpected errors
             const errorMessage = error instanceof Error ? error.message : String(error);
-            await updateRpcCall(call.id, {
-              status: 'failed',
-              completed_at: new Date().toISOString(),
-              rate_limit_key: provider.name,
-            });
             
             // Store error result
             await createRpcCallResult(call.id, provider.url, undefined, `Unexpected error: ${errorMessage}`);
