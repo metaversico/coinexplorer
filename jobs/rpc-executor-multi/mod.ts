@@ -70,6 +70,7 @@ export default async function RunJob() {
     const checkAllComplete = () => {
       if (completedProviders >= totalProviders) {
         console.log("All providers completed their executions. Exiting.");
+        clearTimeout(timelimit);
         resolve();
       }
     };
@@ -164,7 +165,7 @@ export default async function RunJob() {
     });
     
     // Safety timeout - exit after 5 minutes even if not all providers are done
-    setTimeout(() => {
+    const timelimit = setTimeout(() => {
       console.log("Safety timeout reached. Forcing exit.");
       providerExecutions.forEach(pe => {
         if (pe.intervalId !== undefined) {
@@ -172,6 +173,6 @@ export default async function RunJob() {
         }
       });
       resolve();
-    }, 5 * 60 * 1000); // 5 minutes
+    }, 45 * 1000); // 45 seconds
   });
 }
