@@ -42,6 +42,123 @@ export function TransactionDetail() {
     return JSON.stringify(obj, null, 2);
   };
 
+  interface TokenChange {
+    accountIndex: number;
+    mint: string;
+    owner: string;
+    programId: string;
+    decimals: number;
+    preAmount: number;
+    postAmount: number;
+    change: number;
+    uiPreAmount: number;
+    uiPostAmount: number;
+    uiChange: number;
+  }
+
+  const getTokenChanges = (): TokenChange[] => {
+    if (!transaction?.result?.meta?.preTokenBalances || !transaction?.result?.meta?.postTokenBalances) {
+      return [];
+    }
+
+    const preBalances = transaction.result.meta.preTokenBalances;
+    const postBalances = transaction.result.meta.postTokenBalances;
+    const changes: TokenChange[] = [];
+
+    // Create a map of preBalances by accountIndex for quick lookup
+    const preBalanceMap = new Map();
+    preBalances.forEach((balance: any) => {
+      preBalanceMap.set(balance.accountIndex, balance);
+    });
+
+    // Compare post balances with pre balances
+    postBalances.forEach((postBalance: any) => {
+      const preBalance = preBalanceMap.get(postBalance.accountIndex);
+      if (preBalance) {
+        const preAmount = parseFloat(preBalance.uiTokenAmount.amount);
+        const postAmount = parseFloat(postBalance.uiTokenAmount.amount);
+        const change = postAmount - preAmount;
+        
+        if (change !== 0) {
+          changes.push({
+            accountIndex: postBalance.accountIndex,
+            mint: postBalance.mint,
+            owner: postBalance.owner,
+            programId: postBalance.programId,
+            decimals: postBalance.uiTokenAmount.decimals,
+            preAmount: preAmount,
+            postAmount: postAmount,
+            change: change,
+            uiPreAmount: preBalance.uiTokenAmount.uiAmount,
+            uiPostAmount: postBalance.uiTokenAmount.uiAmount,
+            uiChange: postBalance.uiTokenAmount.uiAmount - preBalance.uiTokenAmount.uiAmount
+          });
+        }
+      }
+    });
+
+    return changes;
+  };
+
+  const renderTokenChanges = () => {
+    const tokenChanges = getTokenChanges();
+    
+    if (tokenChanges.length === 0) {
+      return null;
+    }
+
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Token Changes</CardTitle>
+          <CardDescription>Token balance changes from this transaction</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {tokenChanges.map((change, index) => (
+              <div key={index} className="border rounded-lg p-4 bg-muted/30">
+                <div className="grid gap-3">
+                  <div className="flex items-center justify-between">
+                    <div className="font-medium text-sm">Account Index: {change.accountIndex}</div>
+                    <div className={`text-sm font-medium ${change.uiChange > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {change.uiChange > 0 ? '+' : ''}{change.uiChange.toLocaleString('en-US', { maximumFractionDigits: change.decimals })}
+                    </div>
+                  </div>
+                  <div className="space-y-2 text-xs text-muted-foreground">
+                    <div className="flex justify-between">
+                      <span>Token Mint:</span>
+                      <span className="font-mono break-all">{change.mint}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Owner:</span>
+                      <span className="font-mono break-all">{change.owner}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Program:</span>
+                      <span className="font-mono break-all">{change.programId}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Pre-Balance:</span>
+                      <span>{change.uiPreAmount?.toLocaleString('en-US', { maximumFractionDigits: change.decimals })}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Post-Balance:</span>
+                      <span>{change.uiPostAmount?.toLocaleString('en-US', { maximumFractionDigits: change.decimals })}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Raw Change:</span>
+                      <span className="font-mono">{change.change.toLocaleString()}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -153,6 +270,8 @@ export function TransactionDetail() {
           </pre>
         </CardContent>
       </Card>
+
+      {transaction.method === 'getTransaction' && transaction.result && renderTokenChanges()}
 
       {transaction.result && (
         <Card>
