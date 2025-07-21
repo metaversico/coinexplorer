@@ -72,7 +72,7 @@ const TransactionCard: React.FC<{ transaction: Transaction; onRemove: () => void
 
         <div>
           <div className="font-medium text-gray-700 mb-1">Parameters</div>
-          <pre className="bg-gray-50 p-2 rounded text-xs overflow-auto max-h-32">
+          <pre className="bg-gray-50 p-2 rounded text-xs overflow-auto max-h-32 break-all whitespace-pre-wrap">
             {JSON.stringify(transaction.params, null, 2)}
           </pre>
         </div>
@@ -80,7 +80,7 @@ const TransactionCard: React.FC<{ transaction: Transaction; onRemove: () => void
         {transaction.result && (
           <div>
             <div className="font-medium text-gray-700 mb-1">Result</div>
-            <pre className="bg-gray-50 p-2 rounded text-xs overflow-auto max-h-32">
+            <pre className="bg-gray-50 p-2 rounded text-xs overflow-auto max-h-32 break-all whitespace-pre-wrap">
               {JSON.stringify(transaction.result, null, 2)}
             </pre>
           </div>

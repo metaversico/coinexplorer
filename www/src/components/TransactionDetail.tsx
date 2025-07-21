@@ -265,7 +265,7 @@ export function TransactionDetail() {
           <CardTitle>Parameters</CardTitle>
         </CardHeader>
         <CardContent>
-          <pre className="bg-muted p-4 rounded-md overflow-x-auto text-sm">
+          <pre className="bg-muted p-4 rounded-md overflow-x-auto text-sm break-all whitespace-pre-wrap">
             {formatJson(transaction.params)}
           </pre>
         </CardContent>
@@ -279,7 +279,7 @@ export function TransactionDetail() {
             <CardTitle>Result</CardTitle>
           </CardHeader>
           <CardContent>
-            <pre className="bg-muted p-4 rounded-md overflow-x-auto text-sm">
+            <pre className="bg-muted p-4 rounded-md overflow-x-auto text-sm break-all whitespace-pre-wrap">
               {formatJson(transaction.result)}
             </pre>
           </CardContent>
