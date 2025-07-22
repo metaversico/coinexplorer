@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, ExternalLink } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Copy, Check } from 'lucide-react';
 import { fetchTransaction } from '@/lib/api';
 import { Transaction } from '@/types';
 
@@ -12,6 +12,7 @@ export function TransactionDetail() {
   const [transaction, setTransaction] = useState<Transaction | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -40,6 +41,17 @@ export function TransactionDetail() {
 
   const formatJson = (obj: any) => {
     return JSON.stringify(obj, null, 2);
+  };
+
+  const copyToClipboard = async (data: any) => {
+    try {
+      const formattedJson = formatJson(data);
+      await navigator.clipboard.writeText(formattedJson);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy to clipboard:', err);
+    }
   };
 
   interface TokenChange {
@@ -315,8 +327,26 @@ export function TransactionDetail() {
 
       {transaction.result && (
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle>Result</CardTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => copyToClipboard(transaction.result)}
+              className="flex items-center gap-2"
+            >
+              {copied ? (
+                <>
+                  <Check className="h-4 w-4" />
+                  Copied!
+                </>
+              ) : (
+                <>
+                  <Copy className="h-4 w-4" />
+                  Copy JSON
+                </>
+              )}
+            </Button>
           </CardHeader>
           <CardContent>
             <pre className="bg-muted p-4 rounded-md overflow-x-auto text-sm break-all whitespace-pre-wrap">
