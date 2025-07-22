@@ -1,5 +1,6 @@
 import { Application, Router } from "@oak/oak";
 import { getTransactions, getTransaction, getTransactionBySignature, ApiTransactionResult } from "../db/rpc/mod.ts";
+import { requestGetTransaction } from "../src/solana/rpc/getTransaction/mod.ts";
 
 import "jsr:@std/dotenv/load"
 const router = new Router();
@@ -67,14 +68,12 @@ router.get("/api/transactions/:id", async (ctx) => {
   try {
     const id = ctx.params.id;
     let transaction: ApiTransactionResult | null = null;
+
     
     // First try to get by signature (new way)
     if (id.length > 50) { // Transaction signatures are typically 87-88 characters
       transaction = await getTransactionBySignature(id);
-    }
-    
-    // If not found or not a signature, try by result ID (old way)
-    if (!transaction) {
+    } else {
       transaction = await getTransaction(id);
     }
     
@@ -87,6 +86,60 @@ router.get("/api/transactions/:id", async (ctx) => {
     ctx.response.body = transaction;
   } catch (error) {
     console.error("API Error:", error);
+    ctx.response.status = 500;
+    ctx.response.body = { error: "Internal Server Error" };
+  }
+});
+
+router.post("/api/seek", async (ctx) => {
+  try {
+    const body = ctx.request.body;
+    const bodyType = body.type();
+    if (bodyType !== "json") {
+      ctx.response.status = 400;
+      ctx.response.body = { error: "Content-Type must be application/json" };
+      return;
+    }
+    
+    const { signature } = await body.json();
+    
+    if (!signature || typeof signature !== 'string') {
+      ctx.response.status = 400;
+      ctx.response.body = { error: "Transaction signature is required" };
+      return;
+    }
+    
+    // Validate signature format (Solana transaction signatures are base58 encoded, typically 87-88 characters)
+    if (signature.length < 80 || signature.length > 90) {
+      ctx.response.status = 400;
+      ctx.response.body = { error: "Invalid transaction signature format" };
+      return;
+    }
+    
+    // Check if transaction already exists
+    const existingTransaction = await getTransactionBySignature(signature);
+    if (existingTransaction) {
+      ctx.response.body = { 
+        signature,
+        status: "exists",
+        transaction: existingTransaction 
+      };
+      return;
+    }
+    
+    // Create RPC call for getTransaction
+    const rpcCallId = await requestGetTransaction(signature);
+    
+    console.log(`Seeking transaction ${signature}, created RPC call ${rpcCallId}`);
+    
+    ctx.response.body = { 
+      signature,
+      status: "pending",
+      rpc_call_id: rpcCallId,
+      message: "Transaction lookup has been queued for processing"
+    };
+  } catch (error) {
+    console.error("Seek API Error:", error);
     ctx.response.status = 500;
     ctx.response.body = { error: "Internal Server Error" };
   }

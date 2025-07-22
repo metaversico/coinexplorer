@@ -1,18 +1,24 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, ExternalLink, Copy, Check } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Copy, Check, Loader2 } from 'lucide-react';
 import { fetchTransaction } from '@/lib/api';
 import { Transaction } from '@/types';
 
 export function TransactionDetail() {
   const { id } = useParams<{ id: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const [transaction, setTransaction] = useState<Transaction | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [polling, setPolling] = useState(false);
+  const [pollCount, setPollCount] = useState(0);
+
+  const isSeeking = searchParams.get('seeking') === 'true';
+  const maxPolls = 40; // 40 polls * 1.5 seconds = 60 seconds max
 
   useEffect(() => {
     if (id) {
@@ -20,18 +26,58 @@ export function TransactionDetail() {
     }
   }, [id]);
 
+  useEffect(() => {
+    let intervalId: number | null = null;
+
+    if (isSeeking && !transaction && !error && pollCount < maxPolls) {
+      setPolling(true);
+      intervalId = setInterval(() => {
+        setPollCount(prev => {
+          const newCount = prev + 1;
+          if (newCount >= maxPolls) {
+            setPolling(false);
+            setError('Transaction fetch timeout. Please try again later.');
+          }
+          return newCount;
+        });
+        loadTransaction();
+      }, 1500); // Poll every 1.5 seconds
+    } else {
+      setPolling(false);
+    }
+
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [isSeeking, transaction, error, pollCount]);
+
+  useEffect(() => {
+    // If we successfully loaded the transaction while seeking, remove the seeking param
+    if (isSeeking && transaction) {
+      const newSearchParams = new URLSearchParams(searchParams);
+      newSearchParams.delete('seeking');
+      setSearchParams(newSearchParams, { replace: true });
+      setPolling(false);
+    }
+  }, [transaction, isSeeking, searchParams, setSearchParams]);
+
   const loadTransaction = async () => {
     if (!id) return;
     
     try {
-      setLoading(true);
+      if (!polling) setLoading(true);
       const data = await fetchTransaction(id);
       setTransaction(data);
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load transaction');
+      if (!polling) {
+        setError(err instanceof Error ? err.message : 'Failed to load transaction');
+      }
+      // If polling and we get an error, continue polling (transaction might not be ready yet)
     } finally {
-      setLoading(false);
+      if (!polling) setLoading(false);
     }
   };
 
@@ -203,10 +249,19 @@ export function TransactionDetail() {
     );
   };
 
-  if (loading) {
+  if (loading || polling) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-lg">Loading transaction...</div>
+      <div className="flex flex-col items-center justify-center h-64 space-y-4">
+        <Loader2 className="h-8 w-8 animate-spin" />
+        <div className="text-lg">
+          {isSeeking ? 'Seeking transaction...' : 'Loading transaction...'}
+        </div>
+        {polling && (
+          <div className="text-sm text-muted-foreground text-center max-w-md">
+            <p>The transaction is being fetched from the blockchain. This may take up to 60 seconds.</p>
+            <p className="mt-2">Poll attempt: {pollCount} / {maxPolls}</p>
+          </div>
+        )}
       </div>
     );
   }

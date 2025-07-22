@@ -1,10 +1,10 @@
-import { createRpcCall, getSignaturesWithoutTransactionData } from "../../db/rpc/mod.ts";
+import { getSignaturesWithoutTransactionData } from "../../db/rpc/mod.ts";
 import { createReceipt } from "../../db/receipts/mod.ts";
 import { createJobRun } from "../../db/mod.ts";
+import { requestGetTransaction } from "../../src/solana/rpc/getTransaction/mod.ts";
 
 const BATCH_SIZE = parseInt(Deno.env.get("SIGNATURE_BATCH_SIZE") || "100");
-const REQUESTS_PER_RUN = parseInt(Deno.env.get("SOLANA_TXNS_REQUESTS_PER_RUN") || "10");
-const MAX_ENCODING = "jsonParsed";
+const REQUESTS_PER_RUN = parseInt(Deno.env.get("SOLANA_TXNS_REQUESTS_PER_RUN") || "100");
 
 export default async function RunJob(params: { job: string; args: string[] }) {
   const jobId = await createJobRun(params.job);
@@ -24,7 +24,8 @@ export default async function RunJob(params: { job: string; args: string[] }) {
       }
 
       try {
-        await scheduleTransactionDownload(signature.signature, jobId);
+        const rpcCallId = await requestGetTransaction(signature.signature, jobId);
+        console.log(`Requested transaction ${signature.signature}, created RPC call ${rpcCallId}`);
         
         await createReceipt(
           "solana-transaction-downloader",
@@ -43,19 +44,4 @@ export default async function RunJob(params: { job: string; args: string[] }) {
     console.error(`Job failed:`, error);
     throw error;
   }
-}
-
-async function scheduleTransactionDownload(signature: string, jobId: string): Promise<string> {
-  const params = [
-    signature,
-    {
-      encoding: MAX_ENCODING,
-      maxSupportedTransactionVersion: 0,
-    }
-  ];
-
-  return await createRpcCall({
-    method: "getTransaction",
-    params,
-  });
 }

@@ -43,3 +43,28 @@ export async function fetchTransaction(id: string): Promise<Transaction> {
   }
   return response.json();
 }
+
+export interface SeekTransactionResponse {
+  signature: string;
+  status: 'exists' | 'pending';
+  transaction?: Transaction;
+  rpc_call_id?: string;
+  message?: string;
+}
+
+export async function seekTransaction(signature: string): Promise<SeekTransactionResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/seek`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ signature }),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.error || 'Failed to seek transaction');
+  }
+  
+  return response.json();
+}

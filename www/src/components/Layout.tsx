@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Menu, ChevronLeft, ChevronRight, BarChart3 } from 'lucide-react';
+import { Menu, ChevronLeft, ChevronRight, BarChart3, Search, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useComparison } from '../context/ComparisonContext';
 import { ComparisonPane } from './ComparisonPane';
@@ -71,9 +71,17 @@ export function Layout({ children }: LayoutProps) {
             <nav className="flex-1 space-y-2 p-4">
               <a
                 href="/"
-                className="flex items-center rounded-lg px-3 py-2 text-sm font-medium text-gray-900 hover:bg-gray-100"
+                className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-900 hover:bg-gray-100"
               >
+                <Home className="h-4 w-4" />
                 {sidebarOpen && 'Transactions'}
+              </a>
+              <a
+                href="/seek"
+                className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-900 hover:bg-gray-100"
+              >
+                <Search className="h-4 w-4" />
+                {sidebarOpen && 'Seek Transaction'}
               </a>
             </nav>
           </div>
