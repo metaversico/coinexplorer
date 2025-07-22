@@ -90,6 +90,14 @@ export function TransactionDetail() {
     return JSON.stringify(obj, null, 2);
   };
 
+  const formatFee = (lamports: number) => {
+    const sol = lamports / 1_000_000_000;
+    return {
+      lamports: lamports.toLocaleString(),
+      sol: sol.toFixed(9)
+    };
+  };
+
   const copyToClipboard = async (data: any) => {
     try {
       const formattedJson = formatJson(data);
@@ -113,49 +121,80 @@ export function TransactionDetail() {
     uiPreAmount: number;
     uiPostAmount: number;
     uiChange: number;
+    isNativeSOL?: boolean;
   }
 
   const getTokenChanges = (): TokenChange[] => {
-    if (!transaction?.result?.meta?.preTokenBalances || !transaction?.result?.meta?.postTokenBalances) {
-      return [];
-    }
-
-    const preBalances = transaction.result.meta.preTokenBalances;
-    const postBalances = transaction.result.meta.postTokenBalances;
     const changes: TokenChange[] = [];
+    
+    // Get SOL balance changes
+    const preBalances = transaction?.result?.meta?.preBalances;
+    const postBalances = transaction?.result?.meta?.postBalances;
+    const accountKeys = transaction?.result?.transaction?.message?.accountKeys || [];
 
-    // Create a map of preBalances by accountIndex for quick lookup
-    const preBalanceMap = new Map();
-    preBalances.forEach((balance: any) => {
-      preBalanceMap.set(balance.accountIndex, balance);
-    });
-
-    // Compare post balances with pre balances
-    postBalances.forEach((postBalance: any) => {
-      const preBalance = preBalanceMap.get(postBalance.accountIndex);
-      if (preBalance) {
-        const preAmount = parseFloat(preBalance.uiTokenAmount.amount);
-        const postAmount = parseFloat(postBalance.uiTokenAmount.amount);
-        const change = postAmount - preAmount;
+    if (preBalances && postBalances && preBalances.length === postBalances.length) {
+      for (let i = 0; i < preBalances.length; i++) {
+        const preLamports = preBalances[i];
+        const postLamports = postBalances[i];
+        const changeLamports = postLamports - preLamports;
         
-        if (change !== 0) {
+        if (changeLamports !== 0 && accountKeys[i]) {
           changes.push({
-            accountIndex: postBalance.accountIndex,
-            mint: postBalance.mint,
-            owner: postBalance.owner,
-            programId: postBalance.programId,
-            decimals: postBalance.uiTokenAmount.decimals,
-            preAmount: preAmount,
-            postAmount: postAmount,
-            change: change,
-            uiPreAmount: preBalance.uiTokenAmount.uiAmount,
-            uiPostAmount: postBalance.uiTokenAmount.uiAmount,
-            uiChange: postBalance.uiTokenAmount.uiAmount - preBalance.uiTokenAmount.uiAmount
+            accountIndex: i,
+            mint: 'SOL',
+            owner: accountKeys[i].pubkey,
+            programId: '11111111111111111111111111111111', // System Program
+            decimals: 9,
+            preAmount: preLamports,
+            postAmount: postLamports,
+            change: changeLamports,
+            uiPreAmount: preLamports / 1_000_000_000,
+            uiPostAmount: postLamports / 1_000_000_000,
+            uiChange: changeLamports / 1_000_000_000,
+            isNativeSOL: true
           });
         }
       }
-    });
+    }
 
+    // Get SPL token balance changes
+    const preTokenBalances = transaction?.result?.meta?.preTokenBalances;
+    const postTokenBalances = transaction?.result?.meta?.postTokenBalances;
+
+    if (preTokenBalances && postTokenBalances) {
+      // Create a map of preBalances by accountIndex for quick lookup
+      const preBalanceMap = new Map();
+      preTokenBalances.forEach((balance: any) => {
+        preBalanceMap.set(balance.accountIndex, balance);
+      });
+
+      // Compare post balances with pre balances
+      postTokenBalances.forEach((postBalance: any) => {
+        const preBalance = preBalanceMap.get(postBalance.accountIndex);
+        if (preBalance) {
+          const preAmount = parseFloat(preBalance.uiTokenAmount.amount);
+          const postAmount = parseFloat(postBalance.uiTokenAmount.amount);
+          const change = postAmount - preAmount;
+          
+          if (change !== 0) {
+            changes.push({
+              accountIndex: postBalance.accountIndex,
+              mint: postBalance.mint,
+              owner: postBalance.owner,
+              programId: postBalance.programId,
+              decimals: postBalance.uiTokenAmount.decimals,
+              preAmount: preAmount,
+              postAmount: postAmount,
+              change: change,
+              uiPreAmount: preBalance.uiTokenAmount.uiAmount,
+              uiPostAmount: postBalance.uiTokenAmount.uiAmount,
+              uiChange: postBalance.uiTokenAmount.uiAmount - preBalance.uiTokenAmount.uiAmount,
+              isNativeSOL: false
+            });
+          }
+        }
+      });
+    }
 
     return changes;
   };
@@ -294,8 +333,8 @@ export function TransactionDetail() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Token Changes</CardTitle>
-          <CardDescription>Token balance changes grouped by owner address</CardDescription>
+          <CardTitle>Balance Changes</CardTitle>
+          <CardDescription>SOL and token balance changes grouped by owner address (fees included)</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-6">
@@ -317,25 +356,49 @@ export function TransactionDetail() {
                       </tr>
                     </thead>
                     <tbody>
-                      {changes.map((change, index) => (
-                        <tr key={index} className="border-b border-muted-foreground/10">
-                          <td className="py-3">
-                            <div className="font-mono text-xs break-all">{getAccountAddress(change.accountIndex)}</div>
-                          </td>
-                          <td className="py-3">
-                            <div className="font-mono text-xs break-all">{change.mint}</div>
-                          </td>
-                          <td className="py-3 text-right">
-                            {change.uiPreAmount?.toLocaleString('en-US', { maximumFractionDigits: change.decimals })}
-                          </td>
-                          <td className="py-3 text-right">
-                            {change.uiPostAmount?.toLocaleString('en-US', { maximumFractionDigits: change.decimals })}
-                          </td>
-                          <td className={`py-3 text-right font-medium ${change.uiChange > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            {change.uiChange > 0 ? '+' : ''}{change.uiChange.toLocaleString('en-US', { maximumFractionDigits: change.decimals })}
-                          </td>
-                        </tr>
-                      ))}
+                      {changes.map((change, index) => {
+                        const isFeePayer = change.owner === feePayer && change.isNativeSOL;
+                        const feeAmount = transaction?.result?.meta?.fee ? transaction.result.meta.fee / 1_000_000_000 : 0;
+                        
+                        return (
+                          <tr key={index} className="border-b border-muted-foreground/10">
+                            <td className="py-3">
+                              <div className="font-mono text-xs break-all">{getAccountAddress(change.accountIndex)}</div>
+                            </td>
+                            <td className="py-3">
+                              <div className="flex items-center gap-2">
+                                <div className="font-mono text-xs break-all">
+                                  {change.isNativeSOL ? 'SOL' : change.mint}
+                                </div>
+                                {change.isNativeSOL && (
+                                  <div className="text-xs px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded">
+                                    Native
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                            <td className="py-3 text-right">
+                              {change.uiPreAmount?.toLocaleString('en-US', { maximumFractionDigits: Math.min(change.decimals, 9) })}
+                              {change.isNativeSOL && ' SOL'}
+                            </td>
+                            <td className="py-3 text-right">
+                              {change.uiPostAmount?.toLocaleString('en-US', { maximumFractionDigits: Math.min(change.decimals, 9) })}
+                              {change.isNativeSOL && ' SOL'}
+                            </td>
+                            <td className={`py-3 text-right font-medium ${change.uiChange > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              <div>
+                                {change.uiChange > 0 ? '+' : ''}{change.uiChange.toLocaleString('en-US', { maximumFractionDigits: Math.min(change.decimals, 9) })}
+                                {change.isNativeSOL && ' SOL'}
+                              </div>
+                              {isFeePayer && feeAmount > 0 && (
+                                <div className="text-xs text-muted-foreground mt-1">
+                                  (includes -{feeAmount.toFixed(9)} SOL fee)
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -463,6 +526,15 @@ export function TransactionDetail() {
                     {transaction.error ? 'Error' : 'Success'}
                   </span>
                 </div>
+                {transaction.result?.meta?.fee && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Transaction Fee:</span>
+                    <div className="text-right">
+                      <div className="font-mono text-sm">{formatFee(transaction.result.meta.fee).sol} SOL</div>
+                      <div className="text-xs text-muted-foreground">{formatFee(transaction.result.meta.fee).lamports} lamports</div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
