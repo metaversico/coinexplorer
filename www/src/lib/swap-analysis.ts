@@ -347,7 +347,7 @@ export function analyzeSolanaTransactionSwaps(transactionResult: any): SwapAnaly
     }
 
     // For top-level DEX calls, we need to find their associated inner instructions
-    const relevantInnerGroup = innerInstructions.find(inner => inner.index === i);
+    const relevantInnerGroup = innerInstructions.find((inner: { index: number }) => inner.index === i);
     if (relevantInnerGroup) {
       // This case is already handled above in the inner instructions loop
       continue;

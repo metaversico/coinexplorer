@@ -485,56 +485,100 @@ export function TransactionDetail() {
             )}
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
+        <CardContent className="space-y-6">
+          {/* Transaction Metadata Section - Priority Information */}
+          {transaction.result && (
             <div>
-              <h3 className="font-medium mb-2">Basic Information</h3>
-              <div className="space-y-2 text-sm">
-                {transaction.txn_signature && (
+              <h3 className="font-medium mb-3 text-base">Transaction Status</h3>
+              <div className="bg-muted/30 p-4 rounded-lg space-y-3">
+                <div className="grid gap-3 md:grid-cols-2">
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Transaction Signature:</span>
-                    <span className="font-mono text-xs break-all">{transaction.txn_signature}</span>
+                    <span className="text-muted-foreground">Status:</span>
+                    <span className={transaction.result.meta?.err ? 'text-red-600 font-medium' : 'text-green-600 font-medium'}>
+                      {transaction.result.meta?.err ? 'Failed' : 'Success'}
+                    </span>
                   </div>
-                )}
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">RPC Call ID:</span>
-                  <span className="font-mono">{transaction.rpc_call_id}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Method:</span>
-                  <span>{transaction.method}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Created:</span>
-                  <span>{formatDate(transaction.created_at)}</span>
-                </div>
-                {transaction.completed_at && (
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Completed:</span>
-                    <span>{formatDate(transaction.completed_at)}</span>
+                    <span className="text-muted-foreground">Confirmation:</span>
+                    <span className="text-green-600 font-medium">Confirmed</span>
                   </div>
-                )}
-                {transaction.source_url && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Source URL:</span>
-                    <span className="font-mono text-xs break-all">{transaction.source_url}</span>
-                  </div>
-                )}
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Status:</span>
-                  <span className={transaction.error ? 'text-red-500' : 'text-green-500'}>
-                    {transaction.error ? 'Error' : 'Success'}
-                  </span>
+                  {transaction.result.blockTime && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Executed:</span>
+                      <span>{new Date(transaction.result.blockTime * 1000).toLocaleString()}</span>
+                    </div>
+                  )}
+                  {transaction.result.slot && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Slot:</span>
+                      <span className="font-mono">{transaction.result.slot.toLocaleString()}</span>
+                    </div>
+                  )}
+                  {transaction.result.meta?.fee && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Transaction Fee:</span>
+                      <div className="text-right">
+                        <div className="font-mono text-sm">{formatFee(transaction.result.meta.fee).sol} SOL</div>
+                        <div className="text-xs text-muted-foreground">{formatFee(transaction.result.meta.fee).lamports} lamports</div>
+                      </div>
+                    </div>
+                  )}
                 </div>
-                {transaction.result?.meta?.fee && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Transaction Fee:</span>
-                    <div className="text-right">
-                      <div className="font-mono text-sm">{formatFee(transaction.result.meta.fee).sol} SOL</div>
-                      <div className="text-xs text-muted-foreground">{formatFee(transaction.result.meta.fee).lamports} lamports</div>
+                {transaction.result.meta?.err && (
+                  <div className="pt-3 border-t border-muted-foreground/10">
+                    <div className="text-sm">
+                      <span className="text-muted-foreground">Error Details:</span>
+                      <div className="mt-1 p-3 bg-red-50 border border-red-200 rounded-md">
+                        <pre className="text-red-800 text-xs font-mono whitespace-pre-wrap">
+                          {JSON.stringify(transaction.result.meta.err, null, 2)}
+                        </pre>
+                      </div>
                     </div>
                   </div>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* RPC Call Information Section */}
+          <div>
+            <h3 className="font-medium mb-3 text-base">RPC Call Information</h3>
+            <div className="bg-muted/20 p-4 rounded-lg space-y-2 text-sm">
+              {transaction.txn_signature && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Transaction Signature:</span>
+                  <span className="font-mono text-xs break-all">{transaction.txn_signature}</span>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">RPC Call ID:</span>
+                <span className="font-mono">{transaction.rpc_call_id}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Method:</span>
+                <span>{transaction.method}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">RPC Call Created:</span>
+                <span>{formatDate(transaction.created_at)}</span>
+              </div>
+              {transaction.completed_at && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">RPC Call Completed:</span>
+                  <span>{formatDate(transaction.completed_at)}</span>
+                </div>
+              )}
+              {transaction.source_url && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Source URL:</span>
+                  <span className="font-mono text-xs break-all">{transaction.source_url}</span>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">RPC Call Status:</span>
+                <span className={transaction.error ? 'text-red-500' : 'text-green-500'}>
+                  {transaction.error ? 'Error' : 'Success'}
+                </span>
               </div>
             </div>
           </div>
