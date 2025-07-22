@@ -3,6 +3,8 @@ import { closeAllDbPools } from "../../db/cleanup.ts";
 
 let server: Deno.HttpServer | null = null;
 
+import "jsr:@std/dotenv/load"
+
 function setupSignalHandlers() {
   const signals: Deno.Signal[] = ["SIGINT", "SIGTERM"];
   
