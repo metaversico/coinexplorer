@@ -163,4 +163,33 @@ export async function getSignaturesByTimeRange(
   } finally {
     client.release();
   }
+}
+
+export interface MarketBackfillState {
+  state: 'first_run' | 'pending' | 'ready';
+  last_signature: string | null;
+}
+
+export async function getMarketBackfillState(marketName: string): Promise<MarketBackfillState> {
+  const pool = getPgPool();
+  const client = await pool.connect();
+  
+  try {
+    const result = await client.queryObject<{ get_market_backfill_state: any }>(
+      "SELECT get_market_backfill_state($1) as get_market_backfill_state",
+      [marketName]
+    );
+    
+    const stateResult = result.rows[0]?.get_market_backfill_state;
+    if (!stateResult) {
+      return { state: 'first_run', last_signature: null };
+    }
+    
+    return {
+      state: stateResult.state,
+      last_signature: stateResult.last_signature
+    };
+  } finally {
+    client.release();
+  }
 } 

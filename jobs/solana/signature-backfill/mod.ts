@@ -1,6 +1,7 @@
 import { parse } from "jsr:@std/yaml";
 import { createRpcCall } from "../../../db/rpc/mod.ts";
-import { getOldestSignature } from "../../../db/signatures/mod.ts";
+import { getMarketBackfillState } from "../../../db/signatures/mod.ts";
+import { createReceipt } from "../../../db/receipts/mod.ts";
 
 const MARKETS_YML_PATH = new URL("../../../markets.yml", import.meta.url).pathname;
 const SOLANA_RPC_URL = Deno.env.get("SOLANA_RPC_URL") ?? "https://api.mainnet-beta.solana.com";
@@ -25,47 +26,74 @@ export default async function RunJob(params: { job: string; args: string[] }) {
   console.log(`Found ${solanaMarkets.length} Solana markets to backfill`);
   
   const scheduledCalls: string[] = [];
+  const skippedMarkets: string[] = [];
   
-  // Get the global oldest signature across all markets
-  const oldestSignature = await getOldestSignature();
-  
-  // Process each market - markets now only direct what addresses to load signatures for
+  // Process each market - use receipt-based state management per market
   for (const market of solanaMarkets) {
     console.log(`Processing market: ${market.name} (${market.address})`);
     
     try {
-      if (oldestSignature) {
-        console.log(`Using global oldest signature: ${oldestSignature.signature.substring(0, 8)}... for market ${market.name}`);
-        
-        // Schedule a request for this market's address using the global oldest signature as 'before'
-        const callId = await scheduleSignatureCall(
-          market.address, 
-          runId, 
-          oldestSignature.signature
-        );
-        scheduledCalls.push(callId);
-        
-        console.log(`Scheduled signature call for ${market.name} from global oldest signature - ID: ${callId}`);
-      } else {
-        console.log(`No signatures found globally, scheduling initial call for ${market.name}`);
-        
-        // No signatures found globally, schedule initial call for this market
-        const callId = await scheduleSignatureCall(market.address, runId);
-        scheduledCalls.push(callId);
-        
-        console.log(`Scheduled initial signature call for ${market.name} - ID: ${callId}`);
+      // Get the backfill state for this specific market from receipts
+      const marketState = await getMarketBackfillState(market.name);
+      
+      switch (marketState.state) {
+        case 'first_run':
+          console.log(`First run for ${market.name}, scheduling initial call`);
+          
+          const initialCallId = await scheduleSignatureCall(market.address, runId);
+          scheduledCalls.push(initialCallId);
+          
+          // Create a receipt to track this RPC call for future runs
+          await createReceipt(
+            `solana-signature-backfill/${market.name}`,
+            `rpc_call/${initialCallId}`
+          );
+          
+          console.log(`Scheduled initial signature call for ${market.name} - ID: ${initialCallId}`);
+          break;
+          
+        case 'pending':
+          console.log(`Pending RPC call for ${market.name}, skipping until results are available`);
+          skippedMarkets.push(market.name);
+          break;
+          
+        case 'ready':
+          if (marketState.last_signature) {
+            console.log(`Found last processed signature for ${market.name}: ${marketState.last_signature.substring(0, 8)}...`);
+            
+            // Schedule a request for this market's address using the last processed signature as 'before'
+            const continueCallId = await scheduleSignatureCall(
+              market.address, 
+              runId, 
+              marketState.last_signature
+            );
+            scheduledCalls.push(continueCallId);
+            
+            // Create a receipt to track this RPC call for future runs
+            await createReceipt(
+              `solana-signature-backfill/${market.name}`,
+              `rpc_call/${continueCallId}`
+            );
+            
+            console.log(`Scheduled continuation signature call for ${market.name} - ID: ${continueCallId}`);
+          } else {
+            console.log(`Ready but no signatures returned for ${market.name}, backfill may be complete`);
+            skippedMarkets.push(market.name);
+          }
+          break;
       }
     } catch (error) {
       console.error(`Error processing market ${market.name}:`, error);
     }
   }
   
-  console.log(`Solana signature backfill job completed. Scheduled ${scheduledCalls.length} calls.`);
+  console.log(`Solana signature backfill job completed. Scheduled ${scheduledCalls.length} calls, skipped ${skippedMarkets.length} markets.`);
   
   return {
-    message: `Scheduled signature calls for ${scheduledCalls.length} markets`,
+    message: `Scheduled signature calls for ${scheduledCalls.length} markets, skipped ${skippedMarkets.length} pending markets`,
     markets: solanaMarkets.map(m => m.name),
     scheduledCalls,
+    skippedMarkets,
   };
 }
 
