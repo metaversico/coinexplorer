@@ -77,7 +77,7 @@ export async function getPendingRpcCallsForChain(chain: string, limit: number = 
       `SELECT rc.* FROM rpc_calls rc
        LEFT JOIN rpc_call_results rcr ON rc.id = rcr.rpc_call_id
        WHERE rcr.id IS NULL
-       ORDER BY rc.created_at ASC
+       ORDER BY rc.created_at DESC
        LIMIT $1`,
       [limit]
     );

@@ -8,9 +8,9 @@
 #  schedule: "* * * * *"
 #  job: rpc-executor
 
-# Process RPC calls with multiple providers every 2 minutes
+# Process RPC calls with multiple providers every 1 minutes
 - name: rpc-executor-multi
-  schedule: "*/2 * * * *"
+  schedule: "*/1 * * * *"
   job: rpc-executor-multi
 
 # Process Solana metadata every day at midnight
@@ -21,9 +21,7 @@
   schedule: "1 0 * * *"
   job: solana-metadata-processor
 
-# Process Solana transactions once every minute
-
-
+# Process Solana transactions
 - name: solana-signature-backfill
   schedule: "*/10 * * * *"
   job: solana-signature-backfill
