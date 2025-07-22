@@ -109,6 +109,7 @@ export function TransactionDetail() {
       }
     });
 
+
     return changes;
   };
 
@@ -119,49 +120,80 @@ export function TransactionDetail() {
       return null;
     }
 
+    // Get account keys for address lookup
+    const accountKeys = transaction?.result?.transaction?.message?.accountKeys || [];
+    
+    // Helper function to get account address from index
+    const getAccountAddress = (accountIndex: number) => {
+      return accountKeys[accountIndex]?.pubkey || `Account ${accountIndex}`;
+    };
+
+    // Find the fee payer (first signer, typically at index 0)
+    const feePayer = accountKeys.find((account: any) => account.signer)?.pubkey;
+
+    // Group token changes by owner address only
+    const groupedChanges = tokenChanges.reduce((acc, change) => {
+      if (!acc[change.owner]) {
+        acc[change.owner] = [];
+      }
+      acc[change.owner].push(change);
+      return acc;
+    }, {} as Record<string, TokenChange[]>);
+
+    // Sort groups to show fee payer first
+    const sortedGroups = Object.entries(groupedChanges).sort(([ownerA], [ownerB]) => {
+      if (ownerA === feePayer) return -1;
+      if (ownerB === feePayer) return 1;
+      return 0;
+    });
+
     return (
       <Card>
         <CardHeader>
           <CardTitle>Token Changes</CardTitle>
-          <CardDescription>Token balance changes from this transaction</CardDescription>
+          <CardDescription>Token balance changes grouped by owner address</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {tokenChanges.map((change, index) => (
-              <div key={index} className="border rounded-lg p-4 bg-muted/30">
-                <div className="grid gap-3">
-                  <div className="flex items-center justify-between">
-                    <div className="font-medium text-sm">Account Index: {change.accountIndex}</div>
-                    <div className={`text-sm font-medium ${change.uiChange > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {change.uiChange > 0 ? '+' : ''}{change.uiChange.toLocaleString('en-US', { maximumFractionDigits: change.decimals })}
-                    </div>
-                  </div>
-                  <div className="space-y-2 text-xs text-muted-foreground">
-                    <div className="flex justify-between">
-                      <span>Token Mint:</span>
-                      <span className="font-mono break-all">{change.mint}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Owner:</span>
-                      <span className="font-mono break-all">{change.owner}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Program:</span>
-                      <span className="font-mono break-all">{change.programId}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Pre-Balance:</span>
-                      <span>{change.uiPreAmount?.toLocaleString('en-US', { maximumFractionDigits: change.decimals })}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Post-Balance:</span>
-                      <span>{change.uiPostAmount?.toLocaleString('en-US', { maximumFractionDigits: change.decimals })}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Raw Change:</span>
-                      <span className="font-mono">{change.change.toLocaleString()}</span>
-                    </div>
-                  </div>
+          <div className="space-y-6">
+            {sortedGroups.map(([owner, changes]) => (
+              <div key={owner} className="border rounded-lg p-4 bg-muted/30">
+                <div className="mb-4">
+                  <div className="font-medium text-sm mb-1">Owner Address</div>
+                  <div className="font-mono text-xs break-all text-muted-foreground">{owner}</div>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left py-2 font-medium">Account</th>
+                        <th className="text-left py-2 font-medium">Token</th>
+                        <th className="text-right py-2 font-medium">Pre</th>
+                        <th className="text-right py-2 font-medium">Post</th>
+                        <th className="text-right py-2 font-medium">Change</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {changes.map((change, index) => (
+                        <tr key={index} className="border-b border-muted-foreground/10">
+                          <td className="py-3">
+                            <div className="font-mono text-xs break-all">{getAccountAddress(change.accountIndex)}</div>
+                          </td>
+                          <td className="py-3">
+                            <div className="font-mono text-xs break-all">{change.mint}</div>
+                          </td>
+                          <td className="py-3 text-right">
+                            {change.uiPreAmount?.toLocaleString('en-US', { maximumFractionDigits: change.decimals })}
+                          </td>
+                          <td className="py-3 text-right">
+                            {change.uiPostAmount?.toLocaleString('en-US', { maximumFractionDigits: change.decimals })}
+                          </td>
+                          <td className={`py-3 text-right font-medium ${change.uiChange > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {change.uiChange > 0 ? '+' : ''}{change.uiChange.toLocaleString('en-US', { maximumFractionDigits: change.decimals })}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             ))}
