@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, ExternalLink } from 'lucide-react';
 import { fetchTransaction } from '@/lib/api';
 import { Transaction } from '@/types';
 
@@ -271,6 +271,34 @@ export function TransactionDetail() {
           </div>
         </CardContent>
       </Card>
+
+      {transaction.txn_signature && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Context Links</CardTitle>
+            <CardDescription>View this transaction on external services</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                asChild
+                className="flex items-center gap-2"
+              >
+                <a
+                  href={`https://solscan.io/tx/${transaction.txn_signature}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <ExternalLink className="h-3 w-3" />
+                  View on Solscan
+                </a>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
