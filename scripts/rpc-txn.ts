@@ -47,7 +47,7 @@ async function main() {
       params: [
         signature,
         {
-          encoding: "json",
+          encoding: "jsonParsed",
           commitment: "confirmed",
           maxSupportedTransactionVersion: 0
         }

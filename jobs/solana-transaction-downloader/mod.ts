@@ -2,10 +2,9 @@ import { createRpcCall, getSignaturesWithoutTransactionData } from "../../db/rpc
 import { createReceipt } from "../../db/receipts/mod.ts";
 import { createJobRun } from "../../db/mod.ts";
 
-const SOLANA_RPC_URL = Deno.env.get("SOLANA_RPC_URL") || "https://api.mainnet-beta.solana.com";
 const BATCH_SIZE = parseInt(Deno.env.get("SIGNATURE_BATCH_SIZE") || "100");
 const REQUESTS_PER_RUN = parseInt(Deno.env.get("SOLANA_TXNS_REQUESTS_PER_RUN") || "10");
-const MAX_ENCODING = "base64";
+const MAX_ENCODING = "jsonParsed";
 
 export default async function RunJob(params: { job: string; args: string[] }) {
   const jobId = await createJobRun(params.job);
