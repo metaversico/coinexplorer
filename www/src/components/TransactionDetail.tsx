@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, ExternalLink, Copy, Check, Loader2 } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Copy, Check, ArrowRightLeft, Loader2 } from 'lucide-react';
 import { fetchTransaction } from '@/lib/api';
 import { Transaction } from '@/types';
+import { analyzeSolanaTransactionSwaps, getTokenSymbol, formatSwapType } from '@/lib/swap-analysis';
 
 export function TransactionDetail() {
   const { id } = useParams<{ id: string }>();
@@ -157,6 +158,103 @@ export function TransactionDetail() {
 
 
     return changes;
+  };
+
+  const renderSwaps = () => {
+    if (!transaction?.result) {
+      return null;
+    }
+
+    const swapAnalysis = analyzeSolanaTransactionSwaps(transaction.result);
+    
+    if (swapAnalysis.totalSwaps === 0) {
+      return null;
+    }
+
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <ArrowRightLeft className="h-5 w-5" />
+            Swaps ({swapAnalysis.totalSwaps})
+          </CardTitle>
+          <CardDescription>Token swaps executed in this transaction</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {swapAnalysis.swaps.map((swap, index) => (
+              <div key={index} className="border rounded-lg p-4 bg-muted/30">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="text-sm font-medium text-muted-foreground">
+                    Swap #{index + 1}
+                  </div>
+                  <div className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded-full">
+                    {formatSwapType(swap.type)}
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-4">
+                  {/* Token In */}
+                  <div className="flex-1">
+                    <div className="text-xs text-muted-foreground mb-1">Sold</div>
+                    <div className="flex items-center gap-2">
+                      <div className="font-mono text-sm font-medium text-red-600">
+                        -{swap.tokenIn.uiAmount.toLocaleString('en-US', { 
+                          maximumFractionDigits: swap.tokenIn.decimals 
+                        })}
+                      </div>
+                      <div className="text-sm font-medium">
+                        {getTokenSymbol(swap.tokenIn.mint)}
+                      </div>
+                    </div>
+                    <div className="text-xs font-mono text-muted-foreground break-all mt-1">
+                      {swap.tokenIn.mint}
+                    </div>
+                  </div>
+
+                  {/* Arrow */}
+                  <div className="px-2">
+                    <ArrowRightLeft className="h-4 w-4 text-muted-foreground" />
+                  </div>
+
+                  {/* Token Out */}
+                  <div className="flex-1">
+                    <div className="text-xs text-muted-foreground mb-1">Received</div>
+                    <div className="flex items-center gap-2">
+                      <div className="font-mono text-sm font-medium text-green-600">
+                        +{swap.tokenOut.uiAmount.toLocaleString('en-US', { 
+                          maximumFractionDigits: swap.tokenOut.decimals 
+                        })}
+                      </div>
+                      <div className="text-sm font-medium">
+                        {getTokenSymbol(swap.tokenOut.mint)}
+                      </div>
+                    </div>
+                    <div className="text-xs font-mono text-muted-foreground break-all mt-1">
+                      {swap.tokenOut.mint}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Additional swap info */}
+                <div className="mt-3 pt-3 border-t border-muted-foreground/10">
+                  <div className="grid grid-cols-2 gap-4 text-xs">
+                    <div>
+                      <span className="text-muted-foreground">Instruction Index:</span>
+                      <span className="ml-1 font-mono">{swap.instructionIndex}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Program ID:</span>
+                      <span className="ml-1 font-mono break-all">{swap.programId.slice(0, 8)}...</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    );
   };
 
   const renderTokenChanges = () => {
@@ -409,6 +507,8 @@ export function TransactionDetail() {
           </pre>
         </CardContent>
       </Card>
+
+      {transaction.method === 'getTransaction' && transaction.result && renderSwaps()}
 
       {transaction.method === 'getTransaction' && transaction.result && renderTokenChanges()}
 
