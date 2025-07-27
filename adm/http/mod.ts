@@ -1,4 +1,4 @@
-import { Application, Router } from "jsr:@oak/oak";
+import { Hono } from "hono";
 import { parse } from "jsr:@std/yaml";
 import { registry, httpRequests } from "../metrics.ts";
 import { createJobRun, getJobRun } from "@coinexplorer/db";
@@ -6,51 +6,41 @@ import { queueJob } from "../jobs/client.ts";
 
 const JOBSCHEDULE_PATH = new URL("../jobschedule.yml", import.meta.url).pathname;
 
-// Remove all local metric definitions and registry setup
+const app = new Hono();
 
-const router = new Router();
-
-router.get("/schedule", async (ctx) => {
+app.get("/schedule", async (c) => {
   try {
     const yamlText = await Deno.readTextFile(JOBSCHEDULE_PATH);
     const jobs = parse(yamlText);
-    ctx.response.status = 200;
-    ctx.response.body = Array.isArray(jobs) ? jobs : { jobs };
+    return c.json(Array.isArray(jobs) ? jobs : { jobs });
   } catch (err) {
-    ctx.response.status = 500;
     const msg = err instanceof Error ? err.message : String(err);
-    ctx.response.body = { error: "Failed to read schedule", details: msg };
+    return c.json({ error: "Failed to read schedule", details: msg }, 500);
   }
 });
 
 // /metrics endpoint for Prometheus
-router.get("/metrics", async (ctx) => {
-  ctx.response.status = 200;
-  ctx.response.type = "text/plain";
-  ctx.response.body = await registry.metrics();
+app.get("/metrics", async (c) => {
+  const metrics = await registry.metrics();
+  return c.text(metrics);
 });
 
 // GET /runs/:id endpoint
-router.get("/runs/:id", async (ctx) => {
-  const id = ctx.params.id;
+app.get("/runs/:id", async (c) => {
+  const id = c.req.param("id");
   if (!id) {
-    ctx.response.status = 400;
-    ctx.response.body = { error: "Missing id param" };
-    return;
+    return c.json({ error: "Missing id param" }, 400);
   }
   try {
     const run = await getJobRun(id);
     if (!run) {
-      ctx.response.status = 404;
-      ctx.response.body = { error: "Run not found" };
+      return c.json({ error: "Run not found" }, 404);
     } else {
-      ctx.response.status = 200;
-      ctx.response.body = run;
+      return c.json(run);
     }
   } catch (err) {
-    ctx.response.status = 500;
     const msg = err instanceof Error ? err.message : String(err);
-    ctx.response.body = { error: "Failed to fetch run", details: msg };
+    return c.json({ error: "Failed to fetch run", details: msg }, 500);
   }
 });
 
@@ -59,31 +49,24 @@ router.get("/runs/:id", async (ctx) => {
 // --- End job queue ---
 
 // POST /jobs/:jobname/run endpoint
-router.post("/jobs/:jobname/run", async (ctx) => {
-  const jobname = ctx.params.jobname;
+app.post("/jobs/:jobname/run", async (c) => {
+  const jobname = c.req.param("jobname");
   if (!jobname) {
-    ctx.response.status = 400;
-    ctx.response.body = { error: "Missing jobname param" };
-    return;
+    return c.json({ error: "Missing jobname param" }, 400);
   }
   let runId: string;
   try {
     runId = await createJobRun(jobname);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    ctx.response.status = 500;
-    ctx.response.body = { error: "Failed to create job run", details: msg };
-    return;
+    return c.json({ error: "Failed to create job run", details: msg }, 500);
   }
   // Only call queueJob from jobs/client
   const accepted = queueJob(jobname, runId);
   if (!accepted) {
-    ctx.response.status = 429;
-    ctx.response.body = { error: "Too many jobs running or queued. Please try again later." };
-    return;
+    return c.json({ error: "Too many jobs running or queued. Please try again later." }, 429);
   }
-  ctx.response.status = 202;
-  ctx.response.body = { runId, status: "pending" };
+  return c.json({ runId, status: "pending" }, 202);
 });
 
 function logHttpEvent({
@@ -119,15 +102,14 @@ function logHttpEvent({
   console.log(JSON.stringify(log));
 }
 
-const app = new Application();
-
 // Prometheus metrics middleware
-app.use(async (ctx, next) => {
+app.use("*", async (c, next) => {
   const start = Date.now();
   await next();
   const ms = Date.now() - start;
-  const { method, url } = ctx.request;
-  const status = ctx.response.status?.toString() || "0";
+  const method = c.req.method;
+  const url = new URL(c.req.url);
+  const status = c.res.status.toString();
   // Use the first segment of the path as action, or full path
   const action = url.pathname.split("/")[1] || "/";
   httpRequests.labels({ method, action: `/${action}`, status }).inc();
@@ -140,8 +122,5 @@ app.use(async (ctx, next) => {
     duration: ms,
   });
 });
-
-app.use(router.routes());
-app.use(router.allowedMethods());
 
 export default app;

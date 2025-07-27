@@ -1,27 +1,20 @@
-import { Application, Router } from "@oak/oak";
+import { Hono } from "hono";
+import { cors } from "hono/cors";
 import { getTransactions, getTransaction, getTransactionBySignature, ApiTransactionResult } from "../db/rpc/mod.ts";
 import { requestGetTransaction } from "../src/solana/rpc/getTransaction/mod.ts";
 
 import "jsr:@std/dotenv/load"
-const router = new Router();
+const app = new Hono();
 
-// CORS middleware function
-const corsMiddleware = async (ctx: any, next: any) => {
-  ctx.response.headers.set("Access-Control-Allow-Origin", "*");
-  ctx.response.headers.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  ctx.response.headers.set("Access-Control-Allow-Headers", "Content-Type");
-  
-  if (ctx.request.method === "OPTIONS") {
-    ctx.response.status = 200;
-    return;
-  }
-  
-  await next();
-};
+app.use("*", cors({
+  origin: "*",
+  allowMethods: ["GET", "POST", "OPTIONS"],
+  allowHeaders: ["Content-Type"],
+}));
 
-router.get("/api/transactions", async (ctx) => {
+app.get("/api/transactions", async (c) => {
   try {
-    const url = ctx.request.url;
+    const url = new URL(c.req.url);
     
     // Parse and validate parameters
     const limitParam = url.searchParams.get("limit");
@@ -35,38 +28,33 @@ router.get("/api/transactions", async (ctx) => {
     // Validate method if provided (security check)
     const allowedMethods = ['getSignaturesForAddress', 'getTransaction'];
     if (method && !allowedMethods.includes(method)) {
-      ctx.response.status = 400;
-      ctx.response.body = { 
+      return c.json({ 
         error: "Invalid method filter. Allowed methods: " + allowedMethods.join(', ') 
-      };
-      return;
+      }, 400);
     }
     
     // Validate sort parameter
     const sortDirection = sort.toLowerCase();
     if (sortDirection !== 'asc' && sortDirection !== 'desc') {
-      ctx.response.status = 400;
-      ctx.response.body = { 
+      return c.json({ 
         error: "Invalid sort parameter. Must be 'asc' or 'desc'" 
-      };
-      return;
+      }, 400);
     }
     
     console.log(`API Request: limit=${limit}, offset=${offset}, method=${method}, sort=${sortDirection}`);
     
     const transactions = await getTransactions(limit, offset, method, sortDirection);
     
-    ctx.response.body = transactions;
+    return c.json(transactions);
   } catch (error) {
     console.error("API Error:", error);
-    ctx.response.status = 500;
-    ctx.response.body = { error: "Internal Server Error" };
+    return c.json({ error: "Internal Server Error" }, 500);
   }
 });
 
-router.get("/api/transactions/:id", async (ctx) => {
+app.get("/api/transactions/:id", async (c) => {
   try {
-    const id = ctx.params.id;
+    const id = c.req.param("id");
     let transaction: ApiTransactionResult | null = null;
 
     
@@ -78,53 +66,42 @@ router.get("/api/transactions/:id", async (ctx) => {
     }
     
     if (!transaction) {
-      ctx.response.status = 404;
-      ctx.response.body = { error: "Transaction not found" };
-      return;
+      return c.json({ error: "Transaction not found" }, 404);
     }
     
-    ctx.response.body = transaction;
+    return c.json(transaction);
   } catch (error) {
     console.error("API Error:", error);
-    ctx.response.status = 500;
-    ctx.response.body = { error: "Internal Server Error" };
+    return c.json({ error: "Internal Server Error" }, 500);
   }
 });
 
-router.post("/api/seek", async (ctx) => {
+app.post("/api/seek", async (c) => {
   try {
-    const body = ctx.request.body;
-    const bodyType = body.type();
-    if (bodyType !== "json") {
-      ctx.response.status = 400;
-      ctx.response.body = { error: "Content-Type must be application/json" };
-      return;
+    const contentType = c.req.header("content-type");
+    if (!contentType?.includes("application/json")) {
+      return c.json({ error: "Content-Type must be application/json" }, 400);
     }
     
-    const { signature } = await body.json();
+    const { signature } = await c.req.json();
     
     if (!signature || typeof signature !== 'string') {
-      ctx.response.status = 400;
-      ctx.response.body = { error: "Transaction signature is required" };
-      return;
+      return c.json({ error: "Transaction signature is required" }, 400);
     }
     
     // Validate signature format (Solana transaction signatures are base58 encoded, typically 87-88 characters)
     if (signature.length < 80 || signature.length > 90) {
-      ctx.response.status = 400;
-      ctx.response.body = { error: "Invalid transaction signature format" };
-      return;
+      return c.json({ error: "Invalid transaction signature format" }, 400);
     }
     
     // Check if transaction already exists
     const existingTransaction = await getTransactionBySignature(signature);
     if (existingTransaction) {
-      ctx.response.body = { 
+      return c.json({ 
         signature,
         status: "exists",
         transaction: existingTransaction 
-      };
-      return;
+      });
     }
     
     // Create RPC call for getTransaction
@@ -132,25 +109,18 @@ router.post("/api/seek", async (ctx) => {
     
     console.log(`Seeking transaction ${signature}, created RPC call ${rpcCallId}`);
     
-    ctx.response.body = { 
+    return c.json({ 
       signature,
       status: "pending",
       rpc_call_id: rpcCallId,
       message: "Transaction lookup has been queued for processing"
-    };
+    });
   } catch (error) {
     console.error("Seek API Error:", error);
-    ctx.response.status = 500;
-    ctx.response.body = { error: "Internal Server Error" };
+    return c.json({ error: "Internal Server Error" }, 500);
   }
 });
 
-const app = new Application();
-
-app.use(corsMiddleware);
-app.use(router.routes());
-app.use(router.allowedMethods());
-
 const port = parseInt(Deno.env.get("PORT") || "8000");
 console.log(`API server running on http://localhost:${port}`);
-await app.listen({ port });
+Deno.serve({ port }, app.fetch);

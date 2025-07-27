@@ -9,6 +9,7 @@
     "@coinexplorer/jobs": "../jobs/mod.ts",
     "@coinexplorer/db": "../db/mod.ts",
     "@prom-client": "npm:prom-client",
-    "@postgres": "https://deno.land/x/postgres@v0.17.0/mod.ts"
+    "@postgres": "https://deno.land/x/postgres@v0.17.0/mod.ts",
+    "hono": "jsr:@hono/hono"
   }
 }

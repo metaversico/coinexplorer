@@ -1,7 +1,7 @@
 import AMDHttp from "./mod.ts";
 import { closeAllDbPools } from "../../db/cleanup.ts";
 
-let server: Deno.HttpServer | null = null;
+let abortController: AbortController | null = null;
 
 import "jsr:@std/dotenv/load"
 
@@ -12,8 +12,8 @@ function setupSignalHandlers() {
     Deno.addSignalListener(signal, async () => {
       console.log(`Received ${signal}, shutting down gracefully...`);
       
-      if (server) {
-        await server.shutdown();
+      if (abortController) {
+        abortController.abort();
       }
       
       await closeAllDbPools();
@@ -29,7 +29,12 @@ function main() {
   
   setupSignalHandlers();
   
-  server = AMDHttp.listen({ port });
+  abortController = new AbortController();
+  
+  Deno.serve(
+    { port, signal: abortController.signal },
+    AMDHttp.fetch
+  );
   console.log(`adm/http started on port ${port}`);
 }
 
