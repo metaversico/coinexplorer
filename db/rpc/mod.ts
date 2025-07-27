@@ -107,7 +107,7 @@ export async function updateRpcCall(id: string, fields: Partial<RpcCall>): Promi
   }
 }
 
-export async function createRpcCallResult(rpcCallId: string, sourceUrl: string, result?: any, error?: string): Promise<string> {
+export async function createRpcCallResult(rpcCallId: string, providerName: string, result?: any, error?: string): Promise<string> {
   const pool = getPgPool();
   const client = await pool.connect();
   try {
@@ -117,7 +117,7 @@ export async function createRpcCallResult(rpcCallId: string, sourceUrl: string, 
        RETURNING id`,
       [
         rpcCallId,
-        sourceUrl,
+        providerName,
         result !== undefined ? JSON.stringify(result) : null,
         error || null,
         new Date().toISOString(),

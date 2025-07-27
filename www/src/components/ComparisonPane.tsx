@@ -65,8 +65,8 @@ const TransactionCard: React.FC<{ transaction: Transaction; onRemove: () => void
 
         {transaction.source_url && (
           <div>
-            <div className="font-medium text-gray-700 mb-1">Source URL</div>
-            <div className="break-all">{transaction.source_url}</div>
+            <div className="font-medium text-gray-700 mb-1">Provider</div>
+            <div>{transaction.source_url}</div>
           </div>
         )}
 

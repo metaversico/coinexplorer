@@ -72,7 +72,7 @@ async function main() {
 
     if (response.success) {
       // Store successful result
-      await createRpcCallResult(rpcCallId, highPriorityProvider.url, response.result);
+      await createRpcCallResult(rpcCallId, highPriorityProvider.name, response.result);
       console.log(`✅ Transaction downloaded successfully!`);
       console.log(`   RPC Call ID: ${rpcCallId}`);
       console.log(`   Provider: ${highPriorityProvider.name}`);
@@ -84,7 +84,7 @@ async function main() {
       }
     } else {
       // Store error result
-      await createRpcCallResult(rpcCallId, highPriorityProvider.url, undefined, response.error);
+      await createRpcCallResult(rpcCallId, highPriorityProvider.name, undefined, response.error);
       console.log(`❌ RPC call failed: ${response.error}`);
       console.log(`   RPC Call ID: ${rpcCallId}`);
       console.log(`   Provider: ${highPriorityProvider.name}`);
@@ -92,7 +92,8 @@ async function main() {
     }
     
   } catch (error) {
-    console.error(`❌ Error: ${error.message}`);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(`❌ Error: ${errorMessage}`);
     Deno.exit(1);
   }
 }

@@ -570,8 +570,8 @@ export function TransactionDetail() {
               )}
               {transaction.source_url && (
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Source URL:</span>
-                  <span className="font-mono text-xs break-all">{transaction.source_url}</span>
+                  <span className="text-muted-foreground">Provider:</span>
+                  <span className="font-mono text-xs">{transaction.source_url}</span>
                 </div>
               )}
               <div className="flex justify-between">

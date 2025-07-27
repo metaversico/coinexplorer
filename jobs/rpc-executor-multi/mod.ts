@@ -98,11 +98,11 @@ export default async function RunJob() {
             
             if (response.success) {
               // Store successful result
-              await createRpcCallResult(call.id, provider.url, response.result);
+              await createRpcCallResult(call.id, provider.name, response.result);
               console.log(`RPC call ${call.id} completed successfully via ${provider.name}`);
             } else {
               // Store error result
-              await createRpcCallResult(call.id, provider.url, undefined, response.error);
+              await createRpcCallResult(call.id, provider.name, undefined, response.error);
               console.log(`RPC call ${call.id} failed via ${provider.name}: ${response.error}`);
             }
             
@@ -117,7 +117,7 @@ export default async function RunJob() {
             const errorMessage = error instanceof Error ? error.message : String(error);
             
             // Store error result
-            await createRpcCallResult(call.id, provider.url, undefined, `Unexpected error: ${errorMessage}`);
+            await createRpcCallResult(call.id, provider.name, undefined, `Unexpected error: ${errorMessage}`);
             console.error(`Unexpected error processing RPC call ${call.id} via ${provider.name}: ${errorMessage}`);
           }
         }

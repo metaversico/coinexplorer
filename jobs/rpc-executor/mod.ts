@@ -3,6 +3,7 @@ import { getPendingRpcCalls, createRpcCallResult } from "../../db/rpc/mod.ts";
 
 const MAX_RPC_CALLS_PER_RUN = parseInt(Deno.env.get("MAX_RPC_CALLS_PER_RUN") ?? "10", 10);
 const SOLANA_RPC_URL = Deno.env.get("SOLANA_RPC_URL") ?? "https://api.mainnet-beta.solana.com";
+const SOLANA_RPC_PROVIDER_NAME = Deno.env.get("SOLANA_RPC_PROVIDER_NAME") ?? "solana-mainnet-beta";
 
 export default async function RunJob() {
   const rpcClient = new RpcClient();
@@ -29,11 +30,11 @@ export default async function RunJob() {
   
       if (response.success) {
         // Store result in separate table
-        await createRpcCallResult(call.id, SOLANA_RPC_URL, response.result);
+        await createRpcCallResult(call.id, SOLANA_RPC_PROVIDER_NAME, response.result);
         console.log(`RPC call ${call.id} completed successfully`);
       } else {
         // Store error result in separate table
-        await createRpcCallResult(call.id, SOLANA_RPC_URL, undefined, response.error);
+        await createRpcCallResult(call.id, SOLANA_RPC_PROVIDER_NAME, undefined, response.error);
         console.log(`RPC call ${call.id} failed: ${response.error}`);
       }
     } catch (error) {
@@ -41,7 +42,7 @@ export default async function RunJob() {
       const errorMessage = error instanceof Error ? error.message : String(error);
       
       // Store error result in separate table
-      await createRpcCallResult(call.id, SOLANA_RPC_URL, undefined, `Unexpected error: ${errorMessage}`);
+      await createRpcCallResult(call.id, SOLANA_RPC_PROVIDER_NAME, undefined, `Unexpected error: ${errorMessage}`);
       console.log(`Unexpected error processing RPC call ${call.id}: ${errorMessage}`);
     }
   }
