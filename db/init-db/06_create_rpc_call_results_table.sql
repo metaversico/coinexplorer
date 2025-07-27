@@ -17,4 +17,7 @@ CREATE INDEX idx_rpc_call_results_rpc_call_id ON rpc_call_results(rpc_call_id);
 CREATE INDEX idx_rpc_call_results_source_url ON rpc_call_results(source_url);
 CREATE INDEX idx_rpc_call_results_created_at ON rpc_call_results(created_at);
 
+-- Unique index to prevent duplicate entries for the same rpc_call_id and source_url pair
+CREATE UNIQUE INDEX idx_rpc_call_results_unique_call_source ON rpc_call_results(rpc_call_id, source_url);
+
 GRANT ALL PRIVILEGES ON TABLE rpc_call_results TO jobruns;
