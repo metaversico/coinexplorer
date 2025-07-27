@@ -1,0 +1,81 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: coinexplorer-api
+    restart: unless-stopped
+    environment:
+      - PORT=8000
+      - JOBRUNS_PG_CONN=postgresql://jobruns:jobruns@postgres:5432/jobruns
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+    networks:
+      - coinexplorer-network
+    volumes:
+      - .:/app
+    working_dir: /app
+    command: deno run --allow-all api/main.ts
+
+  www:
+    build:
+      context: ./www
+      dockerfile: Dockerfile
+    container_name: coinexplorer-www
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    networks:
+      - coinexplorer-network
+    environment:
+      - APPENV=development
+
+  adm:
+    build:
+      context: .
+      dockerfile: Dockerfile.adm
+    container_name: coinexplorer-adm
+    restart: unless-stopped
+    environment:
+      - PORT=8080
+      - JOBRUNS_PG_CONN=postgresql://jobruns:jobruns@postgres:5432/jobruns
+      - COINS_PG_CONN=postgresql://coins:coins@postgres:5432/coins
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+    networks:
+      - coinexplorer-network
+    volumes:
+      - .:/app
+    working_dir: /app
+    command: deno run --allow-all adm/main.ts
+
+  postgres:
+    image: postgres:15
+    container_name: coinexplorer-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: localhost
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/init-db:/docker-entrypoint-initdb.d
+    networks:
+      - coinexplorer-network
+
+volumes:
+  pgdata:
+
+networks:
+  coinexplorer-network:
+    driver: bridge

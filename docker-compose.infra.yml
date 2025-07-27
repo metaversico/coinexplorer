@@ -1,0 +1,105 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: coinexplorer-postgres-infra
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: localhost
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata_infra:/var/lib/postgresql/data
+      - ./db/init-db:/docker-entrypoint-initdb.d
+    networks:
+      - coinexplorer-network
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: coinexplorer-postgres-exporter
+    restart: unless-stopped
+    environment:
+      DATA_SOURCE_NAME: "postgresql://postgres:localhost@postgres:5432/postgres?sslmode=disable"
+    ports:
+      - "9187:9187"
+    depends_on:
+      - postgres
+    networks:
+      - coinexplorer-network
+
+  vector:
+    image: timberio/vector:latest-alpine
+    container_name: coinexplorer-vector
+    restart: unless-stopped
+    ports:
+      - "8686:8686"
+    volumes:
+      - ./vector.toml:/etc/vector/vector.toml:ro
+      - /var/log:/var/log:ro
+    networks:
+      - coinexplorer-network
+
+  loki:
+    image: grafana/loki:latest
+    container_name: coinexplorer-loki
+    restart: unless-stopped
+    ports:
+      - "3100:3100"
+    volumes:
+      - loki_data:/loki
+      - ./loki-config.yml:/etc/loki/local-config.yaml:ro
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - coinexplorer-network
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: coinexplorer-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - prometheus_data:/prometheus
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    networks:
+      - coinexplorer-network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: coinexplorer-grafana
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+    depends_on:
+      - prometheus
+      - loki
+    networks:
+      - coinexplorer-network
+
+volumes:
+  pgdata_infra:
+  loki_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  coinexplorer-network:
+    driver: bridge

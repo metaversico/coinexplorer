@@ -1,0 +1,11 @@
+[sources.docker_logs]
+type = "docker_logs"
+include_images = ["coinexplorer-api", "coinexplorer-adm", "coinexplorer-www"]
+
+[sinks.loki]
+type = "loki"
+inputs = ["docker_logs"]
+endpoint = "http://loki:3100"
+encoding.codec = "json"
+labels.container_name = "{{ container_name }}"
+labels.image = "{{ image }}"
