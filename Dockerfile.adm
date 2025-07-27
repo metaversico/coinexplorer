@@ -9,4 +9,4 @@ RUN deno cache adm/main.ts
 
 EXPOSE 8080
 
-CMD ["deno", "run", "--allow-all", "adm/main.ts"]
+CMD ["deno", "run", "--allow-all", "adm/http/main.ts"]
