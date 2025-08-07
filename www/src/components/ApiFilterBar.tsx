@@ -1,19 +1,24 @@
 import { Filter, X, ArrowUp, ArrowDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { SortOrder, TransactionFilters } from '../lib/api';
+import { SortOrder } from '../lib/api';
 
-const RPC_METHODS = [
-  'getSignaturesForAddress',
-  'getTransaction',
-];
-
-interface ApiFilterBarProps {
-  filters: TransactionFilters;
-  onFiltersChange: (filters: TransactionFilters) => void;
+export interface CommonFilters {
+  method?: string | null;
+  sortOrder?: SortOrder;
 }
 
-export function ApiFilterBar({ filters, onFiltersChange }: ApiFilterBarProps) {
+interface ApiFilterBarProps<T extends CommonFilters> {
+  filters: T;
+  onFiltersChange: (filters: T) => void;
+  availableMethods: string[];
+}
+
+export function ApiFilterBar<T extends CommonFilters>({
+  filters,
+  onFiltersChange,
+  availableMethods,
+}: ApiFilterBarProps<T>) {
   const handleMethodFilter = (method: string) => {
     const newMethod = filters.method === method ? null : method;
     onFiltersChange({ ...filters, method: newMethod });
@@ -42,7 +47,7 @@ export function ApiFilterBar({ filters, onFiltersChange }: ApiFilterBarProps) {
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-600">Method:</span>
             <div className="flex gap-1">
-              {RPC_METHODS.map((method) => (
+              {availableMethods.map((method) => (
                 <Button
                   key={method}
                   variant={filters.method === method ? "default" : "outline"}
