@@ -10,3 +10,14 @@ export interface Transaction {
   completed_at: string | null;
   txn_signature?: string;
 }
+
+export interface RpcRequest {
+  id: string;
+  method: string;
+  params: any;
+  result: any;
+  error: string | null;
+  source_url?: string;
+  created_at: string;
+  completed_at: string | null;
+}

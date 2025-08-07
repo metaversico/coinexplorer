@@ -19,6 +19,67 @@ export async function closeRpcPgPool() {
   }
 }
 
+export async function getRpcRequests(limit = 50, offset = 0, method?: string, sort = 'desc'): Promise<ApiRpcRequestResult[]> {
+  const pool = getPgPool();
+  const client = await pool.connect();
+  try {
+    let query = `
+      SELECT
+        rc.id,
+        rc.method,
+        rc.params,
+        rcr.result,
+        rcr.error,
+        rc.created_at,
+        rcr.completed_at,
+        rcr.source_url
+      FROM rpc_calls rc
+      LEFT JOIN rpc_call_results rcr ON rc.id = rcr.rpc_call_id
+    `;
+
+    const queryParams: any[] = [];
+    let paramIndex = 1;
+
+    if (method) {
+      query += ` WHERE rc.method = $${paramIndex}`;
+      queryParams.push(method);
+      paramIndex++;
+    }
+
+    const sortDirection = sort.toLowerCase() === 'asc' ? 'ASC' : 'DESC';
+    query += ` ORDER BY rc.created_at ${sortDirection}`;
+
+    query += ` LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+    queryParams.push(limit, offset);
+
+    const result = await client.queryObject<ApiRpcRequestResult>(query, queryParams);
+    return result.rows.map(row => ({
+      ...row,
+      params: typeof row.params === 'string' ? JSON.parse(row.params) : row.params,
+      result: typeof row.result === 'string' ? JSON.parse(row.result) : row.result,
+    }));
+  } finally {
+    client.release();
+  }
+}
+
+export async function getRpcRequest(id: string): Promise<RpcCallWithResults | null> {
+  return await getRpcCallWithResultsById(id);
+}
+
+export async function getRpcMethods(): Promise<string[]> {
+  const pool = getPgPool();
+  const client = await pool.connect();
+  try {
+    const result = await client.queryObject<{ method: string }>(
+      `SELECT DISTINCT method FROM rpc_calls ORDER BY method`
+    );
+    return result.rows.map(row => row.method);
+  } finally {
+    client.release();
+  }
+}
+
 export async function createRpcCall(request: RpcRequest): Promise<string> {
   const pool = getPgPool();
   const client = await pool.connect();
@@ -302,6 +363,17 @@ export interface ApiTransactionResult {
   completed_at: string | null;
   source_url?: string;
   txn_signature?: string;
+}
+
+export interface ApiRpcRequestResult {
+  id: string;
+  method: string;
+  params: any;
+  result: any;
+  error: string | null;
+  created_at: string;
+  completed_at: string | null;
+  source_url?: string;
 }
 
 export async function getTransactions(limit = 50, offset = 0, method?: string, sort = 'desc'): Promise<ApiTransactionResult[]> {

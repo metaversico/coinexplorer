@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { getTransactions, getTransaction, getTransactionBySignature, ApiTransactionResult } from "../db/rpc/mod.ts";
+import { getTransactions, getTransaction, getTransactionBySignature, getRpcRequests, getRpcRequest, getRpcMethods, ApiTransactionResult } from "../db/rpc/mod.ts";
 import { requestGetTransaction } from "../src/solana/rpc/getTransaction/mod.ts";
 
 import "jsr:@std/dotenv/load"
@@ -70,6 +70,60 @@ app.get("/api/transactions/:id", async (c) => {
     }
     
     return c.json(transaction);
+  } catch (error) {
+    console.error("API Error:", error);
+    return c.json({ error: "Internal Server Error" }, 500);
+  }
+});
+
+app.get("/api/rpc-requests", async (c) => {
+  try {
+    const url = new URL(c.req.url);
+
+    const limitParam = url.searchParams.get("limit");
+    const offsetParam = url.searchParams.get("offset");
+    const method = url.searchParams.get("method") || undefined;
+    const sort = url.searchParams.get("sort") || "desc";
+
+    const limit = Math.min(Math.max(parseInt(limitParam || "50"), 1), 100);
+    const offset = Math.max(parseInt(offsetParam || "0"), 0);
+
+    const sortDirection = sort.toLowerCase();
+    if (sortDirection !== 'asc' && sortDirection !== 'desc') {
+      return c.json({
+        error: "Invalid sort parameter. Must be 'asc' or 'desc'"
+      }, 400);
+    }
+
+    const rpcRequests = await getRpcRequests(limit, offset, method, sortDirection);
+
+    return c.json(rpcRequests);
+  } catch (error) {
+    console.error("API Error:", error);
+    return c.json({ error: "Internal Server Error" }, 500);
+  }
+});
+
+app.get("/api/rpc-requests/:id", async (c) => {
+  try {
+    const id = c.req.param("id");
+    const rpcRequest = await getRpcRequest(id);
+
+    if (!rpcRequest) {
+      return c.json({ error: "RPC Request not found" }, 404);
+    }
+
+    return c.json(rpcRequest);
+  } catch (error) {
+    console.error("API Error:", error);
+    return c.json({ error: "Internal Server Error" }, 500);
+  }
+});
+
+app.get("/api/rpc-methods", async (c) => {
+  try {
+    const methods = await getRpcMethods();
+    return c.json(methods);
   } catch (error) {
     console.error("API Error:", error);
     return c.json({ error: "Internal Server Error" }, 500);
