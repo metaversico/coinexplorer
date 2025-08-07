@@ -48,46 +48,60 @@ export async function createRpcCall(request: RpcRequest): Promise<string> {
   }
 }
 
-export async function getPendingRpcCalls(limit: number = 10): Promise<RpcCall[]> {
-  const pool = getPgPool();
-  const client = await pool.connect();
-  try {
-    const result = await client.queryObject<RpcCall>(
-      `SELECT rc.* FROM rpc_calls rc
-       LEFT JOIN rpc_call_results rcr ON rc.id = rcr.rpc_call_id
-       WHERE rcr.id IS NULL
-       ORDER BY rc.created_at ASC
-       LIMIT $1`,
-      [limit]
-    );
-    return result.rows.map(row => ({
-      ...row,
-      params: typeof row.params === 'string' ? JSON.parse(row.params) : row.params,
-    }));
-  } finally {
-    client.release();
-  }
+export async function fetchAndLockPendingRpcCalls(limit: number = 10): Promise<RpcCall[]> {
+    const pool = getPgPool();
+    const client = await pool.connect();
+    try {
+        await client.queryObject('BEGIN');
+        const result = await client.queryObject<RpcCall>(
+            `SELECT id, method, params, created_at
+             FROM rpc_calls
+             WHERE status = 'pending'
+             ORDER BY created_at
+             LIMIT $1
+             FOR UPDATE SKIP LOCKED`,
+            [limit]
+        );
+
+        const calls = result.rows;
+        if (calls.length > 0) {
+            const callIds = calls.map(c => c.id);
+            await client.queryObject(
+                `UPDATE rpc_calls
+                 SET status = 'processing', updated_at = now()
+                 WHERE id = ANY($1::UUID[])`,
+                [callIds]
+            );
+        }
+
+        await client.queryObject('COMMIT');
+
+        return calls.map(row => ({
+            ...row,
+            params: typeof row.params === 'string' ? JSON.parse(row.params) : row.params,
+        }));
+    } catch (e) {
+        await client.queryObject('ROLLBACK');
+        throw e;
+    } finally {
+        client.release();
+    }
 }
 
-export async function getPendingRpcCallsForChain(chain: string, limit: number = 10): Promise<RpcCall[]> {
-  const pool = getPgPool();
-  const client = await pool.connect();
-  try {
-    const result = await client.queryObject<RpcCall>(
-      `SELECT rc.* FROM rpc_calls rc
-       LEFT JOIN rpc_call_results rcr ON rc.id = rcr.rpc_call_id
-       WHERE rcr.id IS NULL
-       ORDER BY rc.created_at DESC
-       LIMIT $1`,
-      [limit]
-    );
-    return result.rows.map(row => ({
-      ...row,
-      params: typeof row.params === 'string' ? JSON.parse(row.params) : row.params,
-    }));
-  } finally {
-    client.release();
-  }
+export async function unlockStaleRpcCalls(staleMinutes: number = 5): Promise<number> {
+    const pool = getPgPool();
+    const client = await pool.connect();
+    try {
+        const result = await client.queryObject(
+            `UPDATE rpc_calls
+             SET status = 'pending', updated_at = now()
+             WHERE status = 'processing'
+             AND updated_at < now() - INTERVAL '${staleMinutes} minutes'`
+        );
+        return result.rowCount || 0;
+    } finally {
+        client.release();
+    }
 }
 
 export async function updateRpcCall(id: string, fields: Partial<RpcCall>): Promise<void> {
@@ -108,25 +122,42 @@ export async function updateRpcCall(id: string, fields: Partial<RpcCall>): Promi
 }
 
 export async function createRpcCallResult(rpcCallId: string, providerName: string, result?: any, error?: string): Promise<string> {
-  const pool = getPgPool();
-  const client = await pool.connect();
-  try {
-    const queryResult = await client.queryObject<{ id: string }>(
-      `INSERT INTO rpc_call_results (rpc_call_id, source_url, result, error, completed_at)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING id`,
-      [
-        rpcCallId,
-        providerName,
-        result !== undefined ? JSON.stringify(result) : null,
-        error || null,
-        new Date().toISOString(),
-      ]
-    );
-    return queryResult.rows[0].id;
-  } finally {
-    client.release();
-  }
+    const pool = getPgPool();
+    const client = await pool.connect();
+    try {
+        await client.queryObject('BEGIN');
+
+        const queryResult = await client.queryObject<{ id: string }>(
+            `INSERT INTO rpc_call_results (rpc_call_id, source_url, result, error, completed_at)
+             VALUES ($1, $2, $3, $4, $5)
+             RETURNING id`,
+            [
+                rpcCallId,
+                providerName,
+                result !== undefined ? JSON.stringify(result) : null,
+                error || null,
+                new Date().toISOString(),
+            ]
+        );
+
+        const resultId = queryResult.rows[0].id;
+
+        await client.queryObject(
+            `UPDATE rpc_calls
+             SET status = 'completed', updated_at = now()
+             WHERE id = $1`,
+            [rpcCallId]
+        );
+
+        await client.queryObject('COMMIT');
+
+        return resultId;
+    } catch (e) {
+        await client.queryObject('ROLLBACK');
+        throw e;
+    } finally {
+        client.release();
+    }
 }
 
 export async function getRpcCallsBySourceUrlPattern(pattern: string, limit: number = 100): Promise<RpcCallWithResults[]> {
