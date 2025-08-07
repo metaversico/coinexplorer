@@ -29,7 +29,7 @@ export function ApiFilterBar<T extends CommonFilters>({
   };
 
   const resetFilters = () => {
-    onFiltersChange({ method: null, sortOrder: 'latest' });
+    onFiltersChange({ method: null, sortOrder: 'latest' } as T);
   };
 
   const hasActiveFilters = filters.method !== null;
