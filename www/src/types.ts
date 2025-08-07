@@ -21,3 +21,14 @@ export interface RpcRequest {
   created_at: string;
   completed_at: string | null;
 }
+
+export interface Market {
+  name: string;
+  chain: string;
+  type: string;
+  address: string;
+}
+
+export interface MarketDetails extends Market {
+  metadata: any;
+}

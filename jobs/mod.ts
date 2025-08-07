@@ -7,10 +7,14 @@ import SolanaSignatureBackfillJob from "./solana/signature-backfill/mod.ts";
 import SolanaSignatureProcessorJob from "./solana-signature-processor/mod.ts";
 import SolanaMetadataProcessorJob from "./solana-metadata-processor/mod.ts";
 import SolanaTransactionDownloaderJob from "./solana-transaction-downloader/mod.ts";
+import SolanaMarketInfoSchedulerJob from "./solana/market-info-scheduler/mod.ts";
+import SolanaMarketInfoProcessorJob from "./solana-market-info-processor/mod.ts";
 
 export default {
   "test-job": TestJob,
   "solana-metadata": SolanaMetadataJob,
+  "solana-market-info-scheduler": SolanaMarketInfoSchedulerJob,
+  "solana-market-info-processor": SolanaMarketInfoProcessorJob,
   "test-error": TestErrorJob,
   "rpc-executor": RpcExecutorJob,
   "rpc-executor-multi": RpcExecutorMultiJob,

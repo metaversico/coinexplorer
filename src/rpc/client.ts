@@ -8,6 +8,7 @@ export interface RpcCall {
 export interface RpcRequest {
   method: string;
   params: any;
+  source?: string;
 }
 
 export interface RpcCallResult {

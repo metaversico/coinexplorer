@@ -63,6 +63,49 @@ export async function getRpcRequests(limit = 50, offset = 0, method?: string, so
   }
 }
 
+export async function getRpcCallsBySource(source: string, limit: number = 100): Promise<RpcCallWithResults[]> {
+  const pool = getPgPool();
+  const client = await pool.connect();
+  try {
+    const result = await client.queryObject<any>(
+      `SELECT
+         rc.*,
+         COALESCE(
+           json_agg(
+             json_build_object(
+               'id', rcr.id,
+               'rpc_call_id', rcr.rpc_call_id,
+               'source_url', rcr.source_url,
+               'result', rcr.result,
+               'error', rcr.error,
+               'created_at', rcr.created_at,
+               'completed_at', rcr.completed_at
+             )
+             ORDER BY rcr.completed_at DESC
+           ) FILTER (WHERE rcr.id IS NOT NULL),
+           '[]'::json
+         ) as results
+       FROM rpc_calls rc
+       LEFT JOIN rpc_call_results rcr ON rc.id = rcr.rpc_call_id
+       WHERE rc.source = $1 AND rc.status = 'completed'
+       GROUP BY rc.id
+       ORDER BY MAX(rcr.completed_at) DESC
+       LIMIT $2`,
+      [source, limit]
+    );
+    return result.rows.map(row => ({
+      ...row,
+      params: typeof row.params === 'string' ? JSON.parse(row.params) : row.params,
+      results: row.results.map((r: any) => ({
+        ...r,
+        result: r.result && typeof r.result === 'string' ? JSON.parse(r.result) : r.result,
+      })),
+    }));
+  } finally {
+    client.release();
+  }
+}
+
 export async function getRpcRequest(id: string): Promise<RpcCallWithResults | null> {
   return await getRpcCallWithResultsById(id);
 }
@@ -84,24 +127,26 @@ export async function createRpcCall(request: RpcRequest): Promise<string> {
   const pool = getPgPool();
   const client = await pool.connect();
   try {
+    // Note: ON CONFLICT does not work with source, so we handle it manually
+    const existingResult = await client.queryObject<{ id: string }>(
+      `SELECT id FROM rpc_calls WHERE method = $1 AND params = $2`,
+      [request.method, JSON.stringify(request.params)]
+    );
+
+    if (existingResult.rows.length > 0) {
+      return existingResult.rows[0].id;
+    }
+
     const result = await client.queryObject<{ id: string }>(
-      `INSERT INTO rpc_calls (method, params)
-       VALUES ($1, $2)
-       ON CONFLICT (method, params) DO NOTHING
+      `INSERT INTO rpc_calls (method, params, source)
+       VALUES ($1, $2, $3)
        RETURNING id`,
       [
         request.method,
         JSON.stringify(request.params),
+        request.source,
       ]
     );
-    
-    if (result.rows.length === 0) {
-      const existingResult = await client.queryObject<{ id: string }>(
-        `SELECT id FROM rpc_calls WHERE method = $1 AND params = $2`,
-        [request.method, JSON.stringify(request.params)]
-      );
-      return existingResult.rows[0].id;
-    }
     
     return result.rows[0].id;
   } finally {

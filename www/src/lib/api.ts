@@ -1,4 +1,4 @@
-import { Transaction, RpcRequest } from '@/types';
+import { Transaction, RpcRequest, Market, MarketDetails } from '@/types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
@@ -32,6 +32,22 @@ export async function fetchTransactions(
   const response = await fetch(`${API_BASE_URL}/api/transactions?${params.toString()}`);
   if (!response.ok) {
     throw new Error('Failed to fetch transactions');
+  }
+  return response.json();
+}
+
+export async function fetchMarket(address: string): Promise<MarketDetails> {
+  const response = await fetch(`${API_BASE_URL}/api/market/${address}`);
+  if (!response.ok) {
+    throw new Error('Failed to fetch market details');
+  }
+  return response.json();
+}
+
+export async function fetchMarkets(): Promise<Market[]> {
+  const response = await fetch(`${API_BASE_URL}/api/markets`);
+  if (!response.ok) {
+    throw new Error('Failed to fetch markets');
   }
   return response.json();
 }

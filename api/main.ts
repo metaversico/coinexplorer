@@ -1,6 +1,8 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { parse } from "jsr:@std/yaml";
 import { getTransactions, getTransaction, getTransactionBySignature, getRpcRequests, getRpcRequest, getRpcMethods, ApiTransactionResult } from "../db/rpc/mod.ts";
+import { getMarketByAddress } from "../db/markets/mod.ts";
 import { requestGetTransaction } from "../src/solana/rpc/getTransaction/mod.ts";
 
 import "jsr:@std/dotenv/load"
@@ -11,6 +13,43 @@ app.use("*", cors({
   allowMethods: ["GET", "POST", "OPTIONS"],
   allowHeaders: ["Content-Type"],
 }));
+
+app.get("/api/markets", async (c) => {
+  try {
+    const fileContent = await Deno.readTextFile("../markets.yml");
+    const markets = parse(fileContent);
+    return c.json(markets);
+  } catch (error) {
+    console.error("API Error (markets):", error);
+    return c.json({ error: "Internal Server Error" }, 500);
+  }
+});
+
+app.get("/api/market/:address", async (c) => {
+  try {
+    const address = c.req.param("address");
+    const market = await getMarketByAddress(address);
+
+    // even if market is not in db, we can still return info from yml
+    const fileContent = await Deno.readTextFile("../markets.yml");
+    const markets = parse(fileContent) as any[];
+    const marketInfo = markets.find(m => m.address === address);
+
+    if (!marketInfo) {
+      return c.json({ error: "Market info not found in markets.yml" }, 404);
+    }
+
+    const response = {
+      ...marketInfo,
+      metadata: market ? market.metadata : null,
+    };
+
+    return c.json(response);
+  } catch (error) {
+    console.error("API Error (market):", error);
+    return c.json({ error: "Internal Server Error" }, 500);
+  }
+});
 
 app.get("/api/transactions", async (c) => {
   try {
