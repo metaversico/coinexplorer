@@ -11,3 +11,31 @@
   chain: solana
   type: raydium-cpmm
   address: 4dZYxq34pbhawy5aPPHYnMeBjUNeS6LXrKTnhHPKSMSB
+- name: GOGO/BIBI
+  chain: solana
+  type: raydium-clmm
+  address: F6otc1kmoToEMDFC2tJAspK5yr99F4AXWBGG8Eas72Zn
+- name: GOGO/TUTU
+  chain: solana
+  type: raydium-clmm
+  address: 8f1LNx1CU3cpDZnLU7JtfMvoD5N2hDD3D9gdCAeXFAaD
+- name: GOGO/LUCE
+  chain: solana
+  type: raydium-cpmm
+  address: 9UbFSDJi3rRAuWH7mbDQ1QyLnkUVySNpFbjHrvyrgaZ8
+- name: GOGO/MOODENG
+  chain: solana
+  type: raydium-cpmm
+  address: 4xM2tFBVCWo6n9kC5iNkHrjJvYMZvLKz5WN5ZRUDvzS5
+- name: GOGO/POPCAT
+  chain: solana
+  type: raydium-cpmm
+  address: 4JrBa3jRKGJ3vQ25zuUkBaSfFjDcZAJcMcUAF3afzU4m
+- name: GOGO/SOL
+  chain: solana
+  type: raydium-clmm
+  address: 6c5ghV2tNog4qTTVdm9XsnfNQdL4c5MQo2rSZYZjwyir
+- name: GOGO/USDC
+  chain: solana
+  type: raydium-cpmm
+  address: 5nhgPqM5NuuQJDa139tb3zoCUxYbo4KcVc6Y6EerL33a
