@@ -3,14 +3,16 @@
 
 DROP TABLE IF EXISTS rpc_calls;
 CREATE TABLE rpc_calls (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  method TEXT NOT NULL,
-  params JSONB NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  UNIQUE(method, params)
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    method TEXT NOT NULL,
+    params JSONB NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now(),
+    UNIQUE(method, params)
 );
-
 -- Indexes for efficient querying
 CREATE INDEX idx_rpc_calls_created_at ON rpc_calls(created_at);
+CREATE INDEX idx_rpc_calls_status ON rpc_calls(status);
 
 GRANT ALL PRIVILEGES ON TABLE rpc_calls TO jobruns; 
