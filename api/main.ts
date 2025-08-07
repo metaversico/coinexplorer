@@ -16,7 +16,7 @@ app.use("*", cors({
 
 app.get("/api/markets", async (c) => {
   try {
-    const fileContent = await Deno.readTextFile("../markets.yml");
+    const fileContent = await Deno.readTextFile("./markets.yml");
     const markets = parse(fileContent);
     return c.json(markets);
   } catch (error) {
@@ -31,7 +31,7 @@ app.get("/api/market/:address", async (c) => {
     const market = await getMarketByAddress(address);
 
     // even if market is not in db, we can still return info from yml
-    const fileContent = await Deno.readTextFile("../markets.yml");
+    const fileContent = await Deno.readTextFile("./markets.yml");
     const markets = parse(fileContent) as any[];
     const marketInfo = markets.find(m => m.address === address);
 
