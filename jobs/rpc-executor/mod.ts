@@ -1,5 +1,5 @@
 import { RpcClient } from "../../src/rpc/client.ts";
-import { getPendingRpcCalls, createRpcCallResult } from "../../db/rpc/mod.ts";
+import { fetchAndLockPendingRpcCalls, createRpcCallResult } from "../../db/rpc/mod.ts";
 
 const MAX_RPC_CALLS_PER_RUN = parseInt(Deno.env.get("MAX_RPC_CALLS_PER_RUN") ?? "10", 10);
 const SOLANA_RPC_URL = Deno.env.get("SOLANA_RPC_URL") ?? "https://api.mainnet-beta.solana.com";
@@ -11,7 +11,7 @@ export default async function RunJob() {
   console.log(`Starting RPC executor job, max calls per run: ${MAX_RPC_CALLS_PER_RUN}`);
   
   // Get pending RPC calls
-  const pendingCalls = await getPendingRpcCalls(MAX_RPC_CALLS_PER_RUN);
+  const pendingCalls = await fetchAndLockPendingRpcCalls(MAX_RPC_CALLS_PER_RUN);
   
   if (pendingCalls.length === 0) {
     console.log("No pending RPC calls to process");
