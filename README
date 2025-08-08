@@ -78,3 +78,12 @@ System design values:
 - Everything works locally, scales with infra
 - Test driven development to minimize surplus design, starting with unit tests and ensuring high coverage
 - Design and development guidance and tasks should be tracked on TASKS.md
+
+CLI usage:
+  deno task cxo <command>
+
+Commands:
+  show <address|ticker>
+  markets <address|ticker> [<address|ticker>]
+  swaps [-f] [--after|--before DATE] <address|ticker> [<address|ticker>]
+  txn <sig>
