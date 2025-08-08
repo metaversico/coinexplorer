@@ -10,6 +10,7 @@ services:
     environment:
       - PORT=8000
       - JOBRUNS_PG_CONN=postgresql://jobruns:jobruns@postgres:5432/jobruns
+      - COINS_PG_CONN=postgresql://coins:coins@postgres:5432/coins
     ports:
       - "8000:8000"
     depends_on:
