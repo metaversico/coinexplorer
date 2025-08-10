@@ -1,4 +1,4 @@
-import { Transaction, RpcRequest, Market, MarketDetails } from '@/types';
+import { Transaction, RpcRequest, Market, MarketDetails, CoinDetails } from '@/types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
@@ -50,6 +50,42 @@ export async function fetchMarkets(): Promise<Market[]> {
     throw new Error('Failed to fetch markets');
   }
   return response.json();
+}
+
+// TODO: Replace mock implementation with real API call once backend is ready
+export async function fetchCoin(ticker: string): Promise<CoinDetails> {
+  // Simulate network delay
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve({
+        ticker,
+        name: 'Mock Coin',
+        chain: 'Ethereum',
+        address: '0x1234567890abcdef',
+        created_at: '2023-01-01T00:00:00Z',
+        image: 'https://via.placeholder.com/64',
+        website: 'https://example.com',
+        socials: {
+          twitter: 'https://twitter.com/example',
+          github: 'https://github.com/example',
+        },
+        markets: [
+          { name: 'MarketA', price: 1.23 },
+          { name: 'MarketB', price: 1.25 },
+        ],
+        price_history: [
+          { date: '2024-01-01', price: 1.0 },
+          { date: '2024-02-01', price: 1.1 },
+          { date: '2024-03-01', price: 1.2 },
+          { date: '2024-04-01', price: 1.3 },
+        ],
+        transactions: [
+          { id: 'tx1', type: 'swap', amount: 100, timestamp: '2024-05-01T12:00:00Z' },
+          { id: 'tx2', type: 'transfer', amount: 50, timestamp: '2024-05-02T15:30:00Z' },
+        ],
+      });
+    }, 300);
+  });
 }
 
 export async function fetchRpcRequest(id: string): Promise<RpcRequest> {
