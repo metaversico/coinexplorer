@@ -79,6 +79,30 @@ export async function storeSignatures(
   }
 }
 
+export async function getMarketForwardFillState(marketName: string): Promise<MarketForwardFillState> {
+  const pool = getPgPool();
+  const client = await pool.connect();
+
+  try {
+    const result = await client.queryObject<{ get_market_forward_fill_state: any }>(
+      "SELECT get_market_forward_fill_state($1) as get_market_forward_fill_state",
+      [marketName]
+    );
+
+    const stateResult = result.rows[0]?.get_market_forward_fill_state;
+    if (!stateResult) {
+      return { state: 'first_run', next_signature: null };
+    }
+
+    return {
+      state: stateResult.state,
+      next_signature: stateResult.next_signature
+    };
+  } finally {
+    client.release();
+  }
+}
+
 export async function getSignatures(
   limit: number = 100,
   offset: number = 0
@@ -168,6 +192,11 @@ export async function getSignaturesByTimeRange(
 export interface MarketBackfillState {
   state: 'first_run' | 'pending' | 'ready';
   last_signature: string | null;
+}
+
+export interface MarketForwardFillState {
+  state: 'first_run' | 'pending' | 'ready';
+  next_signature: string | null;
 }
 
 export async function getMarketBackfillState(marketName: string): Promise<MarketBackfillState> {
