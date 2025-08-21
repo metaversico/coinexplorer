@@ -1,4 +1,5 @@
 import { Pool, PoolClient } from "@postgres";
+import { parse } from "jsr:@std/yaml";
 
 let _coinsPgPool: Pool | null = null;
 
@@ -53,4 +54,43 @@ export async function getMarketByAddress(address: string): Promise<{ address: st
   } finally {
     client.release();
   }
+}
+
+export async function getAllMarkets(): Promise<{ address: string, metadata: any }[]> {
+    const pool = getCoinsPool();
+    const client = await pool.connect();
+    try {
+      const result = await client.queryObject<{ address: string, metadata: any }>(
+        "SELECT address, metadata FROM markets ORDER BY metadata->>'name' ASC"
+      );
+      return result.rows.map(row => ({
+        ...row,
+        metadata: typeof row.metadata === 'string' ? JSON.parse(row.metadata) : row.metadata,
+      }));
+    } finally {
+      client.release();
+    }
+}
+
+const MARKETS_YML_PATH = new URL("../../markets.yml", import.meta.url).pathname;
+
+interface Market {
+    name: string;
+    chain: string;
+    type: string;
+    address: string;
+}
+
+export async function loadMarketsFromYaml(): Promise<Market[]> {
+    const yml = await Deno.readTextFile(MARKETS_YML_PATH);
+    const marketsParsed = parse(yml);
+    if (!Array.isArray(marketsParsed)) {
+        return [];
+    }
+    return marketsParsed.map((m: any) => ({
+        name: m.name,
+        chain: m.chain,
+        type: m.type,
+        address: m.address,
+    }));
 }

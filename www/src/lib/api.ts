@@ -36,6 +36,23 @@ export async function fetchTransactions(
   return response.json();
 }
 
+export async function createMarket(market: Omit<Market, 'metadata'>): Promise<Market> {
+  const response = await fetch(`${API_BASE_URL}/api/markets`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(market),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.error || 'Failed to create market');
+  }
+
+  return response.json();
+}
+
 export async function fetchMarket(address: string): Promise<MarketDetails> {
   const response = await fetch(`${API_BASE_URL}/api/market/${address}`);
   if (!response.ok) {
