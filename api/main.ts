@@ -1,8 +1,7 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { parse } from "jsr:@std/yaml";
 import { getTransactions, getTransaction, getTransactionBySignature, getRpcRequests, getRpcRequest, getRpcMethods, ApiTransactionResult } from "../db/rpc/mod.ts";
-import { getMarketByAddress } from "../db/markets/mod.ts";
+import { getMarketByAddress, getAllMarkets, upsertMarket, getCoinsPool } from "../db/markets/mod.ts";
 import { requestGetTransaction } from "../src/solana/rpc/getTransaction/mod.ts";
 
 import "jsr:@std/dotenv/load"
@@ -16,9 +15,8 @@ app.use("*", cors({
 
 app.get("/api/markets", async (c) => {
   try {
-    const fileContent = await Deno.readTextFile("./markets.yml");
-    const markets = parse(fileContent);
-    return c.json(markets);
+    const markets = await getAllMarkets();
+    return c.json(markets.map(m => m.metadata));
   } catch (error) {
     console.error("API Error (markets):", error);
     return c.json({ error: "Internal Server Error" }, 500);
@@ -30,25 +28,34 @@ app.get("/api/market/:address", async (c) => {
     const address = c.req.param("address");
     const market = await getMarketByAddress(address);
 
-    // even if market is not in db, we can still return info from yml
-    const fileContent = await Deno.readTextFile("./markets.yml");
-    const markets = parse(fileContent) as any[];
-    const marketInfo = markets.find(m => m.address === address);
-
-    if (!marketInfo) {
-      return c.json({ error: "Market info not found in markets.yml" }, 404);
+    if (!market) {
+      return c.json({ error: "Market not found" }, 404);
     }
 
-    const response = {
-      ...marketInfo,
-      metadata: market ? market.metadata : null,
-    };
-
-    return c.json(response);
+    return c.json(market.metadata);
   } catch (error) {
     console.error("API Error (market):", error);
     return c.json({ error: "Internal Server Error" }, 500);
   }
+});
+
+app.post("/api/markets", async (c) => {
+    try {
+        const market = await c.req.json();
+
+        // Basic validation
+        if (!market.name || !market.chain || !market.type || !market.address) {
+            return c.json({ error: "Missing required market fields" }, 400);
+        }
+
+        const pool = getCoinsPool();
+        await upsertMarket(pool, market.address, market);
+
+        return c.json(market, 201);
+    } catch (error) {
+        console.error("API Error (create market):", error);
+        return c.json({ error: "Internal Server Error" }, 500);
+    }
 });
 
 app.get("/api/transactions", async (c) => {
