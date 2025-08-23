@@ -7,6 +7,7 @@ import { RpcRequestDetail } from '@/components/RpcRequestDetail';
 import { SeekTransaction } from '@/components/SeekTransaction';
 import { MarketList } from '@/components/MarketList';
 import { MarketDetail } from '@/components/MarketDetail';
+import { CoinDetail } from '@/components/CoinDetail';
 import { ComparisonProvider } from './context/ComparisonContext';
 
 function App() {
@@ -18,6 +19,7 @@ function App() {
             <Route path="/" element={<TransactionList />} />
             <Route path="/markets" element={<MarketList />} />
             <Route path="/market/:address" element={<MarketDetail />} />
+            <Route path="/coin/:ticker" element={<CoinDetail />} />
             <Route path="/seek" element={<SeekTransaction />} />
             <Route path="/transaction/:id" element={<TransactionDetail />} />
             <Route path="/rpc-requests" element={<RpcRequestList />} />
